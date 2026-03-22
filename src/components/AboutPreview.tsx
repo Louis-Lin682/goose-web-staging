@@ -18,7 +18,7 @@ const ABOUT_STORY = [
 ];
 
 export const AboutPreview = () => (
-  <section id="about" className="py-24 overflow-hidden bg-white">
+  <section id="about" className="overflow-hidden bg-white pt-16">
     <div className="max-w-7xl mx-auto px-6">
       <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} className="text-center mb-20">
         <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">關於我們</h2>
@@ -26,7 +26,7 @@ export const AboutPreview = () => (
       </motion.div>
 
       {ABOUT_STORY.map((story, index) => (
-        <div key={index} className={`flex flex-col md:flex-row items-center gap-12 mb-32 ${story.reverse ? 'md:flex-row-reverse' : ''}`}>
+        <div key={index} className={`flex flex-col md:flex-row items-center gap-12 mb-10 ${story.reverse ? 'md:flex-row-reverse' : ''}`}>
           <motion.div 
             initial={{ opacity: 0, x: story.reverse ? 50 : -50 }}
             whileInView={{ opacity: 1, x: 0 }}

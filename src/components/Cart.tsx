@@ -51,13 +51,13 @@ export const Cart = () => {
           <div className="rounded-3xl border border-dashed border-zinc-200 bg-zinc-50 px-8 py-16 text-center">
             <p className="text-2xl font-bold text-zinc-900">購物車目前是空的</p>
             <p className="mt-3 text-sm text-zinc-500">
-              先去挑選幾樣商品，加入後這裡就會顯示內容。
+              先去挑選幾樣產品，加入後這裡就會顯示內容。
             </p>
             <Link
               to="/fullMenu"
               className="mt-8 inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
             >
-              去看完整菜單
+              去挑選產品
             </Link>
           </div>
         ) : (
