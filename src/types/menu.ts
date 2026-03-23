@@ -1,19 +1,72 @@
-// src/types/menu.ts
-
 export interface MenuItem {
   id: string;
   category: string;
+  categoryOrder?: number;
   subCategory: string;
   name: string;
-  // 這裡處理你的兩種價格格式
-  price?: number;        // 單一價（如：滷豆腐 30）
-  priceSmall?: number;   // 小份價
-  priceLarge?: number;   // 大份價
+  imageUrl?: string | null;
+  price?: number;
+  priceSmall?: number;
+  priceLarge?: number;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
-// 這是之後購物車會用到的格式
 export interface CartItem extends MenuItem {
-  selectedVariant?: string; // 例如 "小份" 或 "大份"
-  finalPrice: number;       // 最終選定的價格
-  quantity: number;         // 數量
+  selectedVariant?: string;
+  finalPrice: number;
+  quantity: number;
 }
+
+export type ProductsResponse = {
+  products: MenuItem[];
+};
+
+export type CreateProductPayload = {
+  category: string;
+  categoryOrder?: number;
+  subCategory: string;
+  name: string;
+  imageUrl?: string;
+  price?: number;
+  priceSmall?: number;
+  priceLarge?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+export type CreateProductResponse = {
+  message: string;
+  product: MenuItem;
+};
+
+export type UpdateProductPayload = {
+  category?: string;
+  categoryOrder?: number;
+  subCategory?: string;
+  name?: string;
+  imageUrl?: string | null;
+  price?: number;
+  priceSmall?: number;
+  priceLarge?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+export type UpdateProductResponse = {
+  message: string;
+  product: MenuItem;
+};
+
+export type DeleteProductResponse = {
+  message: string;
+};
+
+export type UpdateCategoryOrderPayload = {
+  category: string;
+  categoryOrder: number;
+};
+
+export type UpdateCategoryOrderResponse = {
+  message: string;
+};

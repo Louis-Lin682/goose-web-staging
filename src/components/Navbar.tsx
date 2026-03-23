@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Menu as MenuIcon, ShoppingCart, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogOut, Menu as MenuIcon, ShoppingCart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "../context/useAuth";
+import { useAdminNotifications } from "../context/useAdminNotifications";
 import { useCart } from "../context/useCart";
+import { login as loginUser, logout as logoutUser, register as registerUser } from "../lib/auth";
+import type { LoginPayload, RegisterPayload } from "../types/auth";
 
 type AuthMode = "login" | "register";
 
@@ -28,11 +32,11 @@ const navLinks = [
 ];
 
 const shippingRows = [
-  { amount: "1000元以下", shipping: "200元", codFee: "30元" },
-  { amount: "1001～1800元", shipping: "230元", codFee: "30元" },
-  { amount: "1801～6000元", shipping: "290元", codFee: "60元" },
-  { amount: "6001～10000元", shipping: "0元", codFee: "90元" },
-  { amount: "10001元以上", shipping: "0元", codFee: "0元" },
+  { amount: "1000 元以下", shipping: "200 元", codFee: "30 元" },
+  { amount: "1001～1800 元", shipping: "230 元", codFee: "30 元" },
+  { amount: "1801～6000 元", shipping: "290 元", codFee: "60 元" },
+  { amount: "6001～10000 元", shipping: "0 元", codFee: "90 元" },
+  { amount: "10001 元以上", shipping: "0 元", codFee: "0 元" },
 ];
 
 const inputClassName =
@@ -80,13 +84,13 @@ const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
     </button>
 
     <p className="text-center text-xs leading-5 text-zinc-500">
-      目前先保留入口，之後可直接串接 LINE Login。
+      目前先預留介面位置，之後可直接接上 LINE Login。
     </p>
   </div>
 );
 
 const NoticeModal = ({ onClose }: { onClose: () => void }) => (
-  <div className="fixed inset-0 z-[110] bg-black/50 px-4 py-8" onClick={onClose}>
+  <div className="fixed inset-0 z-[110] bg-black/50 px-8 py-8" onClick={onClose}>
     <div className="mx-auto flex h-full max-w-4xl items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -128,17 +132,19 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => (
             </p>
           </section>
 
-          <section>
-            <h3 className="text-lg font-bold text-zinc-900">運費計算方式</h3>
-            <p className="mt-2">統一速達宅急便費用計算方式</p>
+          <section className="space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-zinc-900">運費計算方式</h3>
+              <p>統一速達宅急便費用計算方式</p>
+            </div>
 
-            <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200">
-              <table className="w-full border-collapse text-center">
-                <thead className="bg-zinc-50 text-xs uppercase tracking-[0.2em] text-zinc-500">
+            <div className="overflow-hidden rounded-3xl border border-zinc-200">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-zinc-50 text-zinc-900">
                   <tr>
-                    <th className="px-4 py-3">訂購金額</th>
-                    <th className="px-4 py-3">運費</th>
-                    <th className="py-3">貨到付款手續費</th>
+                    <th className="px-4 py-3 font-semibold">訂購金額</th>
+                    <th className="px-4 py-3 font-semibold">運費</th>
+                    <th className="px-4 py-3 font-semibold">貨到付款手續費</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,48 +152,57 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => (
                     <tr key={row.amount} className="border-t border-zinc-100">
                       <td className="px-4 py-3">{row.amount}</td>
                       <td className="px-4 py-3">{row.shipping}</td>
-                      <td className="py-3">{row.codFee}</td>
+                      <td className="px-4 py-3">{row.codFee}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <p className="mt-3 text-zinc-500">註：網路訂購滿6000元以上，免付運費。</p>
+            <p className="text-sm text-zinc-500">註：網路訂購滿 6000 元以上，免付運費。</p>
           </section>
 
           <section className="space-y-3">
             <p>
-              1、網路訂購須7天後才出貨，若要更改時間請在備註說明。實際到貨日須視宅急便當區配送狀況而定，無法指定幾點送達。如遇到連續假日或過年期間，請提早安排收貨日期，國定連假前一週及過年前一星期無法指定時間到達，敬請見諒。
+              1. 網路訂購須 7 天後才出貨，若要更改時間請在備註說明。實際到貨日仍須視宅急便當區配送狀況而定，無法指定幾點送達。如遇連續假日或過年期間，請提早安排收貨日期，國定連假前一週及過年前一星期無法指定時間到達，敬請見諒。
             </p>
-            <p>2、離島地區不適用以上運費計算方式，請來電詢問。</p>
+            <p>2. 離島地區不適用以上運費計算方式，請來電詢問。</p>
             <p>
-              3、可選取黑貓店取，讓您成為時間的主人。到站後黑貓宅急便會通知前往站所取件，不用在家等待。
+              3. 可選取黑貓店取，讓您成為時間的主人。到站後黑貓宅急便會通知前往站所取件，不用在家等待。
             </p>
             <a
               href="http://103.234.81.15/TCAT/CAT0001/CAT0001MM1"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex font-semibold text-orange-600 underline underline-offset-4"
+              className="inline-flex text-orange-600 underline underline-offset-4"
             >
-              查詢黑貓寄取站所地址
+              查詢寄取站所地址
             </a>
           </section>
 
-          <section className="space-y-2">
-            <h3 className="text-lg font-bold text-zinc-900">聯絡資訊</h3>
-            <p>門市地址：台中市南屯區永春東七路746-1號</p>
-            <p>訂購電話：04-2380-0255</p>
-            <p>付款方式：線上付款、貨到付款。</p>
-            <p>
-              聯絡我們：
-              <a
-                href="mailto:christian7267@yahoo.com.tw"
-                className="ml-1 font-semibold text-orange-600 underline underline-offset-4"
-              >
-                123456789@yahoo.com.tw
+          <section className="grid gap-6 rounded-[1.75rem] bg-zinc-50 px-5 py-5 text-sm text-zinc-600 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">
+                Store
+              </p>
+              <p className="mt-3 font-semibold text-zinc-900">門市地址</p>
+              <p>台中市南屯區永春東七路 746-1 號</p>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">
+                Contact
+              </p>
+              <p className="mt-3 font-semibold text-zinc-900">訂購電話</p>
+              <a href="tel:04-2380-0255" className="text-orange-600">
+                04-2380-0255
               </a>
-            </p>
+              <p className="mt-3 font-semibold text-zinc-900">付款方式</p>
+              <p>線上付款、貨到付款</p>
+              <p className="mt-3 font-semibold text-zinc-900">聯絡我們</p>
+              <a href="mailto:christian7267@yahoo.com.tw" className="text-orange-600">
+                christian7267@yahoo.com.tw
+              </a>
+            </div>
           </section>
         </div>
       </motion.div>
@@ -199,21 +214,36 @@ const AuthModal = ({
   mode,
   onModeChange,
   onClose,
+  onLoginSuccess,
 }: {
   mode: AuthMode;
   onModeChange: (mode: AuthMode) => void;
   onClose: () => void;
+  onLoginSuccess: (isAdmin: boolean) => void;
 }) => {
+  const { signIn } = useAuth();
   const [loginForm, setLoginForm] = useState<LoginFormState>(initialLoginForm);
   const [registerForm, setRegisterForm] = useState<RegisterFormState>(initialRegisterForm);
+  const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
+  const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState<{
+    type: "error" | "success";
+    message: string;
+  } | null>(null);
 
   const resetForms = () => {
     setLoginForm(initialLoginForm());
     setRegisterForm(initialRegisterForm());
+    setIsLoginSubmitting(false);
+    setIsRegisterSubmitting(false);
+    setAuthFeedback(null);
   };
 
   const handleModeSwitch = (nextMode: AuthMode) => {
-    if (nextMode === mode) return;
+    if (nextMode === mode) {
+      return;
+    }
+
     resetForms();
     onModeChange(nextMode);
   };
@@ -223,8 +253,88 @@ const AuthModal = ({
     onClose();
   };
 
+  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (registerForm.password.length < 8) {
+      setAuthFeedback({ type: "error", message: "密碼至少需要 8 碼。" });
+      return;
+    }
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setAuthFeedback({ type: "error", message: "兩次輸入的密碼不一致。" });
+      return;
+    }
+
+    const payload: RegisterPayload = {
+      name: registerForm.name.trim(),
+      phone: registerForm.phone.trim(),
+      email: registerForm.email.trim(),
+      password: registerForm.password,
+    };
+
+    setIsRegisterSubmitting(true);
+    setAuthFeedback(null);
+
+    try {
+      const response = await registerUser(payload);
+
+      setRegisterForm(initialRegisterForm());
+      setLoginForm((prev) => ({
+        ...prev,
+        identifier: payload.phone || payload.email,
+        password: "",
+        remember: prev.remember,
+      }));
+      setAuthFeedback({
+        type: "success",
+        message: response.message ?? "註冊成功，請直接登入。",
+      });
+      onModeChange("login");
+    } catch (error) {
+      setAuthFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "註冊失敗，請稍後再試。",
+      });
+    } finally {
+      setIsRegisterSubmitting(false);
+    }
+  };
+
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const payload: LoginPayload = {
+      identifier: loginForm.identifier.trim(),
+      password: loginForm.password,
+      remember: loginForm.remember,
+    };
+
+    setIsLoginSubmitting(true);
+    setAuthFeedback(null);
+
+    try {
+      const response = await loginUser(payload);
+
+      if (!response.user) {
+        throw new Error("登入成功，但未取得會員資料。");
+      }
+
+      signIn(response.user);
+      resetForms();
+      onLoginSuccess(response.user.isAdmin);
+    } catch (error) {
+      setAuthFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "登入失敗，請稍後再試。",
+      });
+    } finally {
+      setIsLoginSubmitting(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[115] bg-black/55 px-4 py-6" onClick={handleClose}>
+    <div className="fixed inset-0 z-[115] bg-black/55 px-8 py-6" onClick={handleClose}>
       <div className="mx-auto flex h-full max-w-lg items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -248,7 +358,7 @@ const AuthModal = ({
                 type="button"
                 onClick={handleClose}
                 className="rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-                aria-label="關閉登入註冊視窗"
+                aria-label="關閉登入彈窗"
               >
                 <X />
               </button>
@@ -256,7 +366,7 @@ const AuthModal = ({
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col px-5 py-5 md:px-6">
-            <div className="relative mb-6 shrink-0 grid grid-cols-2 rounded-2xl bg-zinc-100 p-1">
+            <div className="relative mb-6 grid shrink-0 grid-cols-2 rounded-2xl bg-zinc-100 p-1">
               <motion.span
                 layoutId="auth-mode-pill"
                 transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
@@ -284,9 +394,22 @@ const AuthModal = ({
               </button>
             </div>
 
+            {authFeedback && (
+              <div
+                className={`mb-4 shrink-0 rounded-2xl px-4 py-3 text-sm ${
+                  authFeedback.type === "success"
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border border-red-200 bg-red-50 text-red-600"
+                }`}
+                aria-live="polite"
+              >
+                {authFeedback.message}
+              </div>
+            )}
+
             <div className="min-h-0 flex-1 overflow-y-auto">
               {mode === "login" ? (
-                <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
+                <form className="space-y-4" onSubmit={handleLoginSubmit}>
                   <div>
                     <RequiredLabel>手機號碼或 Email</RequiredLabel>
                     <input
@@ -296,7 +419,7 @@ const AuthModal = ({
                         setLoginForm((prev) => ({ ...prev, identifier: event.target.value }))
                       }
                       required
-                      placeholder="優先輸入手機號碼，例如 09xxxxxxxx"
+                      placeholder="請輸入手機號碼或 Email"
                       className={inputClassName}
                     />
                   </div>
@@ -310,7 +433,7 @@ const AuthModal = ({
                         setLoginForm((prev) => ({ ...prev, password: event.target.value }))
                       }
                       required
-                      placeholder="請輸入密碼"
+                      placeholder="請輸入至少 8 碼密碼"
                       className={inputClassName}
                     />
                   </div>
@@ -332,14 +455,18 @@ const AuthModal = ({
                     </button>
                   </div>
 
-                  <Button className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800">
-                    登入
+                  <Button
+                    type="submit"
+                    disabled={isLoginSubmitting}
+                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                  >
+                    {isLoginSubmitting ? "登入中..." : "登入"}
                   </Button>
 
                   <LineAuthButton mode={mode} />
                 </form>
               ) : (
-                <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
+                <form className="space-y-4" onSubmit={handleRegisterSubmit}>
                   <div>
                     <RequiredLabel>手機號碼</RequiredLabel>
                     <input
@@ -364,7 +491,7 @@ const AuthModal = ({
                           setRegisterForm((prev) => ({ ...prev, name: event.target.value }))
                         }
                         required
-                        placeholder="請輸入收件人姓名"
+                        placeholder="請輸入真實姓名"
                         className={inputClassName}
                       />
                     </div>
@@ -384,43 +511,49 @@ const AuthModal = ({
                     </div>
                   </div>
 
-                  <div>
-                    <RequiredLabel>密碼</RequiredLabel>
-                    <input
-                      type="password"
-                      value={registerForm.password}
-                      onChange={(event) =>
-                        setRegisterForm((prev) => ({ ...prev, password: event.target.value }))
-                      }
-                      required
-                      placeholder="至少 8 碼"
-                      className={inputClassName}
-                    />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <RequiredLabel>密碼</RequiredLabel>
+                      <input
+                        type="password"
+                        value={registerForm.password}
+                        onChange={(event) =>
+                          setRegisterForm((prev) => ({ ...prev, password: event.target.value }))
+                        }
+                        required
+                        placeholder="至少 8 碼"
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    <div>
+                      <RequiredLabel>確認密碼</RequiredLabel>
+                      <input
+                        type="password"
+                        value={registerForm.confirmPassword}
+                        onChange={(event) =>
+                          setRegisterForm((prev) => ({
+                            ...prev,
+                            confirmPassword: event.target.value,
+                          }))
+                        }
+                        required
+                        placeholder="請再次輸入密碼"
+                        className={inputClassName}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <RequiredLabel>確認密碼</RequiredLabel>
-                    <input
-                      type="password"
-                      value={registerForm.confirmPassword}
-                      onChange={(event) =>
-                        setRegisterForm((prev) => ({
-                          ...prev,
-                          confirmPassword: event.target.value,
-                        }))
-                      }
-                      required
-                      placeholder="請再次輸入密碼"
-                      className={inputClassName}
-                    />
-                  </div>
-
-                  <p className="text-xs leading-6 text-zinc-500">
+                  <p className="rounded-2xl bg-zinc-50 px-4 py-3 text-xs leading-6 text-zinc-500">
                     建議以手機號碼作為主要登入依據，Email 保留作為通知與找回密碼使用；姓名則用於會員與訂單資料。
                   </p>
 
-                  <Button className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800">
-                    建立帳號
+                  <Button
+                    type="submit"
+                    disabled={isRegisterSubmitting}
+                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                  >
+                    {isRegisterSubmitting ? "建立中..." : "建立帳號"}
                   </Button>
 
                   <LineAuthButton mode={mode} />
@@ -435,12 +568,15 @@ const AuthModal = ({
 };
 
 export const Navbar = () => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNoticeOpen, setIsNoticeOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const { unreadCount: adminUnreadCount } = useAdminNotifications();
   const { totalItems } = useCart();
+  const { user, isAuthenticated, isAuthReady, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -473,9 +609,9 @@ export const Navbar = () => {
     };
   }, [isAuthOpen, isMobileMenuOpen, isNoticeOpen]);
 
-  const openAuth = (mode: AuthMode) => {
+  const openAuth = (nextMode: AuthMode) => {
     setIsMobileMenuOpen(false);
-    setAuthMode(mode);
+    setAuthMode(nextMode);
     setIsAuthOpen(true);
   };
 
@@ -484,6 +620,26 @@ export const Navbar = () => {
     setIsNoticeOpen(false);
     setIsAuthOpen(false);
   };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } finally {
+      signOut();
+      closeAll();
+    }
+  };
+
+  const handleLoginSuccess = (isAdmin: boolean) => {
+    setIsAuthOpen(false);
+    setIsMobileMenuOpen(false);
+
+    if (isAdmin) {
+      navigate("/admin/notifications");
+    }
+  };
+
+  const userLabel = user?.name?.trim() || "會員";
 
   return (
     <>
@@ -504,7 +660,7 @@ export const Navbar = () => {
               />
             </div>
             <div className="cursor-pointer text-2xl font-black tracking-tighter">
-              鵝作社<span className="text-orange-500">.</span>
+              Goose<span className="text-orange-500">.</span>
             </div>
           </Link>
 
@@ -518,6 +674,30 @@ export const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+
+            {isAuthReady && isAuthenticated && (
+              <Link to="/orders" className="transition-colors hover:text-orange-500">
+                訂單查詢
+              </Link>
+            )}
+
+            {isAuthReady && isAuthenticated && user?.isAdmin && (
+              <Link to="/admin/orders" className="transition-colors hover:text-orange-500">
+                後台
+              </Link>
+            )}
+
+            {isAuthReady && isAuthenticated && user?.isAdmin && (
+              <Link
+                to="/admin/notifications"
+                className="inline-flex items-center gap-2 transition-colors hover:text-orange-500"
+              >
+                <span>後台通知</span>
+                <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-bold text-white">
+                  {adminUnreadCount > 99 ? "99+" : adminUnreadCount}
+                </span>
+              </Link>
+            )}
 
             <button
               type="button"
@@ -535,21 +715,37 @@ export const Navbar = () => {
                 </span>
               </Link>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  className="text-xs hover:text-orange-600"
-                  onClick={() => openAuth("login")}
-                >
-                  登入
-                </Button>
-                <Button
-                  className="rounded-none bg-black px-6 text-xs text-white transition-transform hover:bg-zinc-800 active:scale-95"
-                  onClick={() => openAuth("register")}
-                >
-                  註冊
-                </Button>
-              </div>
+              {isAuthReady && isAuthenticated ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold normal-case tracking-normal text-zinc-700">
+                    嗨，{userLabel}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    className="gap-2 text-xs hover:text-orange-600"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    登出
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    className="text-xs hover:text-orange-600"
+                    onClick={() => openAuth("login")}
+                  >
+                    登入
+                  </Button>
+                  <Button
+                    className="rounded-none bg-black px-6 text-xs text-white transition-transform hover:bg-zinc-800 active:scale-95"
+                    onClick={() => openAuth("register")}
+                  >
+                    註冊
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -564,7 +760,7 @@ export const Navbar = () => {
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
               className="rounded-full border border-zinc-200 p-2 text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
-              aria-label="打開選單"
+              aria-label="開啟選單"
             >
               <MenuIcon size={20} />
             </button>
@@ -579,6 +775,7 @@ export const Navbar = () => {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               onClick={(event) => event.stopPropagation()}
               className="ml-auto flex h-full w-[86vw] max-w-sm flex-col bg-white px-6 pb-8 pt-6 shadow-xl"
             >
@@ -605,11 +802,41 @@ export const Navbar = () => {
                     key={link.to}
                     to={link.to}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block rounded-2xl border border-zinc-200 px-4 py-4 text-base font-semibold text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
+                    className="flex items-center justify-between rounded-2xl border border-zinc-200 px-4 py-4 text-base font-semibold text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
                   >
                     {link.label}
                   </Link>
                 ))}
+
+                {isAuthReady && isAuthenticated && (
+                  <Link
+                    to="/orders"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-2xl border border-zinc-200 px-4 py-4 text-base font-semibold text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
+                  >
+                    訂單查詢
+                  </Link>
+                )}
+
+                {isAuthReady && isAuthenticated && user?.isAdmin && (
+                  <Link
+                    to="/admin/notifications"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-2xl border border-zinc-200 px-4 py-4 text-base font-semibold text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
+                  >
+                    後台通知
+                  </Link>
+                )}
+
+                {isAuthReady && isAuthenticated && user?.isAdmin && (
+                  <Link
+                    to="/admin/orders"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-2xl border border-zinc-200 px-4 py-4 text-base font-semibold text-zinc-900 transition-colors hover:border-orange-300 hover:text-orange-600"
+                  >
+                    後台
+                  </Link>
+                )}
 
                 <button
                   type="button"
@@ -624,19 +851,37 @@ export const Navbar = () => {
               </div>
 
               <div className="mt-auto space-y-3 pt-8">
-                <Button
-                  variant="ghost"
-                  className="w-full rounded-full border-gray-200 py-6 justify-center text-sm hover:text-orange-600"
-                  onClick={() => openAuth("login")}
-                >
-                  登入
-                </Button>
-                <Button
-                  className="w-full rounded-full bg-zinc-900 py-6 text-sm text-white hover:bg-zinc-800"
-                  onClick={() => openAuth("register")}
-                >
-                  註冊
-                </Button>
+                {isAuthReady && isAuthenticated ? (
+                  <>
+                    <div className="rounded-2xl bg-zinc-50 px-4 py-4 text-sm text-zinc-600 text-center">
+                      目前登入：<span className="font-semibold text-zinc-900">{userLabel}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-center gap-2 text-sm hover:text-orange-600"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      登出
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-center text-sm hover:text-orange-600"
+                      onClick={() => openAuth("login")}
+                    >
+                      登入
+                    </Button>
+                    <Button
+                      className="w-full rounded-full bg-zinc-900 py-6 text-sm text-white hover:bg-zinc-800"
+                      onClick={() => openAuth("register")}
+                    >
+                      註冊
+                    </Button>
+                  </>
+                )}
               </div>
             </motion.aside>
           </div>
@@ -648,6 +893,7 @@ export const Navbar = () => {
             mode={authMode}
             onModeChange={setAuthMode}
             onClose={() => setIsAuthOpen(false)}
+            onLoginSuccess={handleLoginSuccess}
           />
         )}
       </AnimatePresence>

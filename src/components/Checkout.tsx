@@ -1,44 +1,741 @@
+﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
+import { useAuth } from "../context/useAuth";
 import { useCart } from "../context/useCart";
+import {
+  clearPendingPayment,
+  createEcpayCheckout,
+  createOrder,
+  savePendingPayment,
+} from "../lib/orders";
+import type {
+  CreateOrderPayload,
+  OrderDeliveryMethod,
+  OrderPaymentMethod,
+} from "../types/order";
+
+type CheckoutFormState = {
+  recipientName: string;
+  recipientPhone: string;
+  recipientEmail: string;
+  recipientAddress: string;
+  note: string;
+  deliveryMethod: OrderDeliveryMethod;
+  paymentMethod: OrderPaymentMethod;
+};
+
+type OrderSummaryProps = {
+  totalItems: number;
+  subtotal: number;
+  shippingFee: number;
+  codFee: number;
+  finalTotal: number;
+  deliveryMethod: OrderDeliveryMethod;
+  paymentMethod: OrderPaymentMethod;
+};
+
+const inputClassName =
+  "h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400";
+
+const textareaClassName =
+  "min-h-[132px] w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400";
+
+const variantLabels: Record<string, string> = {
+  single: "單一規格",
+  small: "小",
+  large: "大",
+};
 
 const formatCurrency = (value: number) => `$${value}`;
 
+const getShippingFee = (subtotal: number, deliveryMethod: OrderDeliveryMethod) => {
+  if (deliveryMethod === "pickup") {
+    return 0;
+  }
+
+  if (subtotal <= 1000) {
+    return 200;
+  }
+
+  if (subtotal <= 1800) {
+    return 230;
+  }
+
+  if (subtotal <= 6000) {
+    return 290;
+  }
+
+  return 0;
+};
+
+const getCodFee = (
+  subtotal: number,
+  deliveryMethod: OrderDeliveryMethod,
+  paymentMethod: OrderPaymentMethod,
+) => {
+  if (deliveryMethod === "pickup" || paymentMethod !== "cod") {
+    return 0;
+  }
+
+  if (subtotal <= 1800) {
+    return 30;
+  }
+
+  if (subtotal <= 6000) {
+    return 60;
+  }
+
+  if (subtotal <= 10000) {
+    return 90;
+  }
+
+  return 0;
+};
+
+const buildInitialForm = (
+  name = "",
+  phone = "",
+  email = "",
+): CheckoutFormState => ({
+  recipientName: name,
+  recipientPhone: phone,
+  recipientEmail: email,
+  recipientAddress: "",
+  note: "",
+  deliveryMethod: "home",
+  paymentMethod: "online",
+});
+
+const submitEcpayCheckout = (action: string, fields: Record<string, string>) => {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.style.display = "none";
+
+  Object.entries(fields).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+};
+
+const SectionTitle = ({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) => (
+  <div>
+    <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-600">
+      {eyebrow}
+    </p>
+    <h2 className="mt-3 text-2xl font-black tracking-tight text-zinc-900">{title}</h2>
+    <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-500">{description}</p>
+  </div>
+);
+
+const OrderSummary = ({
+  totalItems,
+  subtotal,
+  shippingFee,
+  codFee,
+  finalTotal,
+  deliveryMethod,
+  paymentMethod,
+}: OrderSummaryProps) => {
+  const { cart } = useCart();
+
+  return (
+    <section className="rounded-[2rem] bg-zinc-900 p-6 text-white">
+      <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">
+        Summary
+      </p>
+      <h2 className="mt-3 text-3xl font-black">訂單摘要</h2>
+
+      <div className="mt-6 space-y-3 border-t border-white/10 pt-6">
+        {cart.map((item) => {
+          const lineTotal = item.finalPrice * item.quantity;
+          const variantLabel = variantLabels[item.selectedVariant] ?? item.selectedVariant;
+
+          return (
+            <div
+              key={`${item.id}-${item.selectedVariant}`}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-white">{item.name}</p>
+                  <p className="mt-1 text-sm text-white/65">
+                    {variantLabel} x {item.quantity}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-white">{formatCurrency(lineTotal)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-8 space-y-4 border-t border-white/10 pt-6">
+        <div className="flex items-center justify-between text-sm text-white/70">
+          <span>商品總數</span>
+          <span>{totalItems}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm text-white/70">
+          <span>商品金額</span>
+          <span>{formatCurrency(subtotal)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm text-white/70">
+          <span>運費</span>
+          <span>{formatCurrency(shippingFee)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm text-white/70">
+          <span>貨到付款手續費</span>
+          <span>{formatCurrency(codFee)}</span>
+        </div>
+        <div className="flex items-center justify-between border-t border-white/10 pt-4 text-lg font-bold">
+          <span>應付合計</span>
+          <span>{formatCurrency(finalTotal)}</span>
+        </div>
+      </div>
+
+      <div className="mt-8 rounded-[1.75rem] bg-white/5 px-4 py-4 text-sm leading-7 text-white/70">
+        {deliveryMethod === "pickup"
+          ? "目前選擇黑貓店取，運費與貨到付款手續費皆為 0 元。"
+          : paymentMethod === "cod"
+            ? "目前選擇貨到付款，系統會依訂單金額自動計算手續費。"
+            : "目前選擇宅配到府與線上付款，送出後會前往綠界付款頁。"}
+      </div>
+    </section>
+  );
+};
+
 export const Checkout = () => {
-  const { cart, totalItems } = useCart();
-  const total = cart.reduce((sum, item) => sum + item.finalPrice * item.quantity, 0);
+  const { cart, totalItems, clearCart } = useCart();
+  const { user, isAuthenticated, isAuthReady } = useAuth();
+  const [isUsingMemberInfo, setIsUsingMemberInfo] = useState(Boolean(user));
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
+  const [form, setForm] = useState<CheckoutFormState>(() =>
+    buildInitialForm(user?.name ?? "", user?.phone ?? "", user?.email ?? ""),
+  );
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const hasExistingContactInfo = Boolean(
+      form.recipientName.trim() || form.recipientPhone.trim() || form.recipientEmail.trim(),
+    );
+
+    if (!isUsingMemberInfo && hasExistingContactInfo) {
+      return;
+    }
+
+    if (!isUsingMemberInfo) {
+      setIsUsingMemberInfo(true);
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      recipientName: user.name,
+      recipientPhone: user.phone,
+      recipientEmail: user.email,
+    }));
+  }, [
+    form.recipientEmail,
+    form.recipientName,
+    form.recipientPhone,
+    isUsingMemberInfo,
+    user,
+  ]);
+
+  const subtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.finalPrice * item.quantity, 0),
+    [cart],
+  );
+  const shippingFee = getShippingFee(subtotal, form.deliveryMethod);
+  const codFee = getCodFee(subtotal, form.deliveryMethod, form.paymentMethod);
+  const finalTotal = subtotal + shippingFee + codFee;
+
+  const handleFieldChange = <K extends keyof CheckoutFormState>(
+    field: K,
+    value: CheckoutFormState[K],
+  ) => {
+    setSubmitMessage(null);
+    setSubmitError(null);
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleUseMemberInfoChange = (checked: boolean) => {
+    setIsUsingMemberInfo(checked);
+
+    if (checked && user) {
+      setForm((prev) => ({
+        ...prev,
+      recipientName: user.name,
+      recipientPhone: user.phone,
+      recipientEmail: user.email,
+      }));
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const payload: CreateOrderPayload = {
+      recipientName: form.recipientName.trim(),
+      recipientPhone: form.recipientPhone.trim(),
+      recipientEmail: form.recipientEmail.trim(),
+      recipientAddress:
+        form.deliveryMethod === "home" ? form.recipientAddress.trim() : undefined,
+      note: form.note.trim() || undefined,
+      deliveryMethod: form.deliveryMethod,
+      paymentMethod: form.paymentMethod,
+      shippingFee,
+      codFee,
+      items: cart.map((item) => ({
+        id: item.id,
+        category: item.category,
+        subCategory: item.subCategory,
+        name: item.name,
+        selectedVariant: item.selectedVariant,
+        finalPrice: item.finalPrice,
+        quantity: item.quantity,
+      })),
+    };
+
+    setIsSubmitting(true);
+    setSubmitMessage(null);
+    setSubmitError(null);
+
+    try {
+      const response = await createOrder(payload);
+
+      if (form.paymentMethod === "online") {
+        savePendingPayment({
+          orderId: response.orderId,
+          orderNumber: response.orderNumber,
+        });
+        setSubmitMessage("訂單建立成功，正在前往綠界付款...");
+        const checkoutResponse = await createEcpayCheckout(response.orderId);
+        submitEcpayCheckout(checkoutResponse.action, checkoutResponse.fields);
+        return;
+      }
+
+      clearPendingPayment();
+      clearCart();
+      setCompletedOrderNumber(response.orderNumber);
+      setSubmitMessage("訂單建立成功，我們會儘快為你安排後續處理。");
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "送出失敗，請稍後再試一次。",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (completedOrderNumber) {
+    return (
+      <main className="min-h-screen bg-white px-6 pb-24 pt-40">
+        <div className="mx-auto max-w-4xl rounded-[2rem] border border-emerald-200 bg-emerald-50 px-8 py-16 text-center">
+          <p className="text-xs font-black uppercase tracking-[0.4em] text-emerald-600">
+            Order Success
+          </p>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
+            訂單建立成功
+          </h1>
+          <p className="mt-4 text-sm leading-7 text-zinc-600">
+            你的訂單編號是
+            <span className="mx-2 font-bold text-zinc-900">{completedOrderNumber}</span>
+            ，我們會儘快為你安排後續處理。
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link
+              to="/"
+              className="inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+            >
+              返回首頁
+            </Link>
+            <Link
+              to="/fullMenu"
+              className="inline-flex rounded-full border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-white"
+            >
+              繼續加購
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthReady) {
+    return (
+      <main className="min-h-screen bg-white px-6 pb-24 pt-40">
+        <div className="mx-auto max-w-5xl rounded-[2rem] border border-zinc-100 bg-zinc-50 px-8 py-16 text-center">
+          <p className="text-sm text-zinc-500">正在載入會員資料...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-white px-6 pb-24 pt-40">
+        <div className="mx-auto flex max-w-5xl justify-center">
+          <AuthRequiredPrompt
+            description="請先登入或註冊，再繼續填寫收件資訊與送出訂單。"
+            actions={
+              <Link
+                to="/cart"
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+              >
+                返回購物車
+              </Link>
+            }
+          />
+        </div>
+      </main>
+    );
+  }
+
+  if (cart.length === 0) {
+    return (
+      <main className="min-h-screen bg-white px-6 pb-24 pt-40">
+        <div className="mx-auto max-w-4xl rounded-[2rem] border border-dashed border-zinc-200 bg-zinc-50 px-8 py-16 text-center">
+          <p className="text-xs font-black uppercase tracking-[0.4em] text-orange-600">
+            Checkout
+          </p>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
+            購物車目前是空的
+          </h1>
+          <p className="mt-4 text-sm leading-7 text-zinc-500">
+            先到產品列表挑選商品，再回來完成結帳流程。
+          </p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Link
+              to="/fullMenu"
+              className="inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
+            >
+              前往產品列表
+            </Link>
+            <Link
+              to="/cart"
+              className="inline-flex rounded-full border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
+            >
+              返回購物車
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-white px-6 pb-24 pt-40">
-      <div className="mx-auto max-w-4xl rounded-[2rem] border border-zinc-100 bg-zinc-50 p-8 md:p-12">
-        <p className="text-xs font-black uppercase tracking-[0.4em] text-orange-600">Checkout</p>
-        <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
-          前往結帳
-        </h1>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-500">
-          這裡先幫你把結帳入口接起來，後面我們可以再補收件資料、付款方式與送出訂單流程。
-        </p>
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-12 flex flex-col gap-6 border-b border-zinc-100 pb-8 lg:flex-row lg:items-end lg:justify-between">
+          <SectionTitle
+            eyebrow="Checkout"
+            title="填寫收件資訊與付款方式"
+            description="確認商品內容後，填寫收件資訊與付款方式；如果選擇線上付款，送出後會直接前往綠界測試付款頁。"
+          />
 
-        <div className="mt-10 grid gap-4 rounded-3xl bg-white p-6 shadow-sm md:grid-cols-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">Items</p>
-            <p className="mt-2 text-2xl font-black text-zinc-900">{totalItems}</p>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">Lines</p>
-            <p className="mt-2 text-2xl font-black text-zinc-900">{cart.length}</p>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">Total</p>
-            <p className="mt-2 text-2xl font-black text-zinc-900">{formatCurrency(total)}</p>
+          <div className="grid grid-cols-3 gap-4 rounded-3xl bg-zinc-50 p-4 text-center">
+            <div className="min-w-[88px]">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                Items
+              </p>
+              <p className="mt-2 text-2xl font-black text-zinc-900">{totalItems}</p>
+            </div>
+            <div className="min-w-[88px]">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                Lines
+              </p>
+              <p className="mt-2 text-2xl font-black text-zinc-900">{cart.length}</p>
+            </div>
+            <div className="min-w-[88px]">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                Total
+              </p>
+              <p className="mt-2 text-2xl font-black text-zinc-900">
+                {formatCurrency(finalTotal)}
+              </p>
+            </div>
           </div>
         </div>
 
-        <Link
-          to="/cart"
-          className="mt-8 inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
-        >
-          返回購物車
-        </Link>
+        <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm md:p-8"
+          >
+            <div className="lg:hidden">
+              <OrderSummary
+                totalItems={totalItems}
+                subtotal={subtotal}
+                shippingFee={shippingFee}
+                codFee={codFee}
+                finalTotal={finalTotal}
+                deliveryMethod={form.deliveryMethod}
+                paymentMethod={form.paymentMethod}
+              />
+            </div>
+
+            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
+                    Contact
+                  </p>
+                  <h2 className="mt-2 text-xl font-black text-zinc-900">收件資訊</h2>
+                </div>
+
+                {user && (
+                  <label className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={isUsingMemberInfo}
+                      onChange={(event) => handleUseMemberInfoChange(event.target.checked)}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    自動帶入會員資料
+                  </label>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                    收件人姓名
+                  </label>
+                  <input
+                    type="text"
+                    value={form.recipientName}
+                    onChange={(event) => handleFieldChange("recipientName", event.target.value)}
+                    required
+                    placeholder="請輸入收件人姓名"
+                    className={inputClassName}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                    收件人電話
+                  </label>
+                  <input
+                    type="tel"
+                    value={form.recipientPhone}
+                    onChange={(event) => handleFieldChange("recipientPhone", event.target.value)}
+                    required
+                    placeholder="09xxxxxxxx"
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={form.recipientEmail}
+                  onChange={(event) => handleFieldChange("recipientEmail", event.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                  {form.deliveryMethod === "pickup" ? "取件相關地址備註" : "收件地址"}
+                </label>
+                <input
+                  type="text"
+                  value={form.recipientAddress}
+                  onChange={(event) => handleFieldChange("recipientAddress", event.target.value)}
+                  required={form.deliveryMethod === "home"}
+                  placeholder={
+                    form.deliveryMethod === "pickup"
+                      ? "可填寫站所名稱或取件備註"
+                      : "請輸入完整收件地址"
+                  }
+                  className={inputClassName}
+                />
+              </div>
+            </section>
+
+            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
+                Delivery
+              </p>
+              <h2 className="mt-2 text-xl font-black text-zinc-900">配送方式</h2>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange("deliveryMethod", "home")}
+                  className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
+                    form.deliveryMethod === "home"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-900 hover:border-orange-300"
+                  }`}
+                >
+                  <p className="text-sm font-bold">宅配到府</p>
+                  <p
+                    className={`mt-2 text-xs leading-6 ${
+                      form.deliveryMethod === "home" ? "text-white/75" : "text-zinc-500"
+                    }`}
+                  >
+                    依訂單金額自動計算運費，線上付款與貨到付款皆可選擇。
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange("deliveryMethod", "pickup")}
+                  className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
+                    form.deliveryMethod === "pickup"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-900 hover:border-orange-300"
+                  }`}
+                >
+                  <p className="text-sm font-bold">黑貓店取</p>
+                  <p
+                    className={`mt-2 text-xs leading-6 ${
+                      form.deliveryMethod === "pickup" ? "text-white/75" : "text-zinc-500"
+                    }`}
+                  >
+                    到站後由黑貓通知取件，不需在家等待，運費與手續費皆為 0 元。
+                  </p>
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
+                Payment
+              </p>
+              <h2 className="mt-2 text-xl font-black text-zinc-900">付款方式</h2>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange("paymentMethod", "online")}
+                  className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
+                    form.paymentMethod === "online"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-900 hover:border-orange-300"
+                  }`}
+                >
+                  <p className="text-sm font-bold">線上付款</p>
+                  <p
+                    className={`mt-2 text-xs leading-6 ${
+                      form.paymentMethod === "online" ? "text-white/75" : "text-zinc-500"
+                    }`}
+                  >
+                    送出訂單後會直接前往綠界 sandbox 測試付款頁。
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange("paymentMethod", "cod")}
+                  className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
+                    form.paymentMethod === "cod"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-900 hover:border-orange-300"
+                  }`}
+                >
+                  <p className="text-sm font-bold">貨到付款</p>
+                  <p
+                    className={`mt-2 text-xs leading-6 ${
+                      form.paymentMethod === "cod" ? "text-white/75" : "text-zinc-500"
+                    }`}
+                  >
+                    系統會依商品金額計算手續費，店取時不收取貨到付款費用。
+                  </p>
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
+                Notes
+              </p>
+              <h2 className="mt-2 text-xl font-black text-zinc-900">備註</h2>
+
+              <div className="mt-5">
+                <textarea
+                  value={form.note}
+                  onChange={(event) => handleFieldChange("note", event.target.value)}
+                  placeholder="如果有希望到貨日期、取貨站所或其他補充資訊，可以在這裡備註。"
+                  className={textareaClassName}
+                />
+              </div>
+            </section>
+
+            {submitError && (
+              <div className="rounded-3xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-600">
+                {submitError}
+              </div>
+            )}
+
+            {submitMessage && (
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
+                {submitMessage}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-12 rounded-full bg-zinc-900 px-6 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+              >
+                {isSubmitting
+                  ? "送出中..."
+                  : form.paymentMethod === "online"
+                    ? "前往付款"
+                    : "結帳送出"}
+              </Button>
+              <Link
+                to="/cart"
+                className="inline-flex h-12 items-center justify-center rounded-full border border-zinc-200 px-6 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-100"
+              >
+                返回購物車
+              </Link>
+            </div>
+          </form>
+
+          <div className="hidden lg:block">
+            <OrderSummary
+              totalItems={totalItems}
+              subtotal={subtotal}
+              shippingFee={shippingFee}
+              codFee={codFee}
+              finalTotal={finalTotal}
+              deliveryMethod={form.deliveryMethod}
+              paymentMethod={form.paymentMethod}
+            />
+          </div>
+        </div>
       </div>
     </main>
   );

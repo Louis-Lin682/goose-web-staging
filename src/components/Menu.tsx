@@ -50,7 +50,7 @@ const cardVariants: Variants = {
 };
 
 export const Menu = () => (
-  <section className="mx-auto max-w-7xl px-6 py-8">
+  <section className="mx-auto max-w-7xl px-6 py-16">
     <div className="mb-12 flex items-center justify-between">
       <h2 className="text-3xl font-bold tracking-tighter underline decoration-orange-500 decoration-4 underline-offset-8">
         推薦產品

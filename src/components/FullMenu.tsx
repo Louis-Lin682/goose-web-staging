@@ -1,12 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ChevronRight } from "lucide-react";
 import menuItems from "../config/menu.config";
 import type { MenuItem } from "../types/menu";
 import { SelectionDrawer } from "../components/SelectionDrawer";
 import { useCart } from "../context/useCart";
+import { getProducts } from "../lib/products";
 
 const getDesktopPrice = (item: MenuItem) => item.price ?? item.priceSmall ?? 0;
+
+const getProductImage = (item: MenuItem) => {
+  const normalizedImageUrl = item.imageUrl?.trim();
+  return normalizedImageUrl ? normalizedImageUrl : null;
+};
 
 const getMobilePriceLabel = (item: MenuItem) => {
   if (typeof item.priceSmall === "number" && typeof item.priceLarge === "number") {
@@ -21,19 +27,70 @@ const getMobilePriceLabel = (item: MenuItem) => {
 };
 
 export const FullMenu = () => {
+  const [products, setProducts] = useState<MenuItem[]>(menuItems);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
   const categories = useMemo(
-    () => Array.from(new Set(menuItems.map((item) => item.category))),
-    [],
+    () => Array.from(new Set(products.map((item) => item.category))),
+    [products],
   );
-  const [activeCategory, setActiveCategory] = useState(() => categories[0] ?? "");
+  const [activeCategory, setActiveCategory] = useState("");
+  const [hasCategorySelection, setHasCategorySelection] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { addToCart } = useCart();
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateProducts = async () => {
+      try {
+        const response = await getProducts();
+
+        if (!isMounted || response.products.length === 0) {
+          return;
+        }
+
+        setProducts(response.products);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setProducts(menuItems);
+      } finally {
+        if (isMounted) {
+          setIsProductsLoading(false);
+        }
+      }
+    };
+
+    void hydrateProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) {
+      setActiveCategory("");
+      return;
+    }
+
+    if (!hasCategorySelection || !categories.includes(activeCategory)) {
+      setActiveCategory(categories[0] ?? "");
+    }
+  }, [activeCategory, categories, hasCategorySelection]);
+
   const filteredItems = useMemo(
-    () => menuItems.filter((item) => item.category === activeCategory),
-    [activeCategory],
+    () => products.filter((item) => item.category === activeCategory),
+    [activeCategory, products],
   );
+
+  const handleCategoryChange = (category: string) => {
+    setHasCategorySelection(true);
+    setActiveCategory(category);
+  };
 
   const handleAddItem = (item: MenuItem) => {
     setSelectedItem(item);
@@ -66,12 +123,18 @@ export const FullMenu = () => {
         </div>
 
         <div className="lg:hidden">
+          {isProductsLoading && (
+            <div className="mb-6 rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+              載入商品資料中...
+            </div>
+          )}
+
           <div className="-mx-1 mb-6 overflow-x-auto pb-1">
             <div className="flex min-w-max gap-2 px-1 pb-1">
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => handleCategoryChange(cat)}
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                     activeCategory === cat
                       ? "border-zinc-900 bg-zinc-900 text-white"
@@ -100,9 +163,17 @@ export const FullMenu = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">
-                        IMG
-                      </span>
+                      {getProductImage(item) ? (
+                        <img
+                          src={getProductImage(item) ?? undefined}
+                          alt={item.name}
+                          className="h-full w-full rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">
+                          IMG
+                        </span>
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -138,7 +209,7 @@ export const FullMenu = () => {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setActiveCategory(cat)}
+                  onClick={() => handleCategoryChange(cat)}
                   className={`group flex w-full items-center justify-between rounded-xl px-4 py-5 text-left transition-all ${
                     activeCategory === cat
                       ? "scale-[1.02] bg-zinc-900 text-white shadow-2xl shadow-zinc-200"
@@ -174,11 +245,19 @@ export const FullMenu = () => {
                   >
                     <div className="flex items-start gap-6">
                       <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 shadow-inner transition-all duration-700 group-hover:grayscale-0">
-                        <div className="flex h-full items-center justify-center">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">
-                            IMAGE
-                          </span>
-                        </div>
+                        {getProductImage(item) ? (
+                          <img
+                            src={getProductImage(item) ?? undefined}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">
+                              IMAGE
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex-1">

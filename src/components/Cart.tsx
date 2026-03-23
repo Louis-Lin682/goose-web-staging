@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
+import { useAuth } from "../context/useAuth";
 import { useCart } from "../context/useCart";
 
 const variantLabels: Record<string, string> = {
-  single: "單點",
-  small: "小份",
-  large: "大份",
-};
-
-const mobileVariantLabels: Record<string, string> = {
-  single: "",
+  single: "單一規格",
   small: "小",
   large: "大",
 };
@@ -20,14 +18,67 @@ const MOBILE_COLLAPSED_COUNT = 3;
 const formatCurrency = (value: number) => `$${value}`;
 
 export const Cart = () => {
-  const { cart, totalItems } = useCart();
+  const {
+    cart,
+    totalItems,
+    updateCartItemQuantity,
+    removeCartItem,
+  } = useCart();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + item.finalPrice * item.quantity, 0);
   const visibleMobileItems = cart.slice(0, MOBILE_COLLAPSED_COUNT);
   const hiddenMobileItems = cart.slice(MOBILE_COLLAPSED_COUNT);
   const showMobileToggle = cart.length > MOBILE_COLLAPSED_COUNT;
   const desktopShouldScroll = cart.length > DESKTOP_SCROLL_THRESHOLD;
+
+  const handleCheckout = () => {
+    if (isAuthenticated) {
+      navigate("/checkout");
+      return;
+    }
+
+    setIsAuthPromptOpen(true);
+  };
+
+  const changeItemQuantity = (
+    itemId: string,
+    selectedVariant: string,
+    quantity: number,
+  ) => {
+    updateCartItemQuantity(itemId, selectedVariant, quantity);
+  };
+
+  const renderQuantityControls = (
+    itemId: string,
+    selectedVariant: string,
+    quantity: number,
+  ) => (
+    <div className="inline-flex items-center rounded-full border border-zinc-200 bg-white">
+      <button
+        type="button"
+        onClick={() => changeItemQuantity(itemId, selectedVariant, quantity - 1)}
+        className="inline-flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:text-orange-600"
+        aria-label="減少數量"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <span className="min-w-[2.5rem] text-center text-sm font-semibold text-zinc-900">
+        {quantity}
+      </span>
+      <button
+        type="button"
+        onClick={() => changeItemQuantity(itemId, selectedVariant, quantity + 1)}
+        className="inline-flex h-10 w-10 items-center justify-center text-zinc-500 transition-colors hover:text-orange-600"
+        aria-label="增加數量"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
 
   return (
     <main className="min-h-screen bg-white px-6 pb-24 pt-40">
@@ -51,13 +102,13 @@ export const Cart = () => {
           <div className="rounded-3xl border border-dashed border-zinc-200 bg-zinc-50 px-8 py-16 text-center">
             <p className="text-2xl font-bold text-zinc-900">購物車目前是空的</p>
             <p className="mt-3 text-sm text-zinc-500">
-              先去挑選幾樣產品，加入後這裡就會顯示內容。
+              先到產品列表挑選商品，加入購物車後就能回來整理訂單。
             </p>
             <Link
               to="/fullMenu"
               className="mt-8 inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
             >
-              去挑選產品
+              前往產品列表
             </Link>
           </div>
         ) : (
@@ -89,12 +140,14 @@ export const Cart = () => {
                           </p>
                         </div>
 
-                        <div className="text-right">
-                          <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">
-                            Qty
-                          </p>
-                          <p className="text-2xl font-black text-zinc-900">{item.quantity}</p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCartItem(item.id, item.selectedVariant)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-500 transition-colors hover:border-red-200 hover:text-red-500"
+                          aria-label="刪除商品"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
 
                       <div className="mt-6 grid gap-4 border-t border-zinc-100 pt-4 text-sm text-zinc-500 md:grid-cols-3">
@@ -110,9 +163,13 @@ export const Cart = () => {
                           <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">
                             數量
                           </p>
-                          <p className="mt-2 text-lg font-semibold text-zinc-900">
-                            {item.quantity}
-                          </p>
+                          <div className="mt-2">
+                            {renderQuantityControls(
+                              item.id,
+                              item.selectedVariant,
+                              item.quantity,
+                            )}
+                          </div>
                         </div>
                         <div className="md:text-right">
                           <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-400">
@@ -141,21 +198,35 @@ export const Cart = () => {
                 <div className="space-y-3">
                   {visibleMobileItems.map((item) => {
                     const lineTotal = item.finalPrice * item.quantity;
-                    const mobileVariantLabel =
-                      mobileVariantLabels[item.selectedVariant] ?? item.selectedVariant;
+                    const variantLabel =
+                      variantLabels[item.selectedVariant] ?? item.selectedVariant;
 
                     return (
                       <div
                         key={`${item.id}-${item.selectedVariant}`}
-                        className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                       >
-                        <p className="text-sm text-white/80">
-                          <span className="font-semibold text-white">{item.name}</span>
-                          {mobileVariantLabel ? ` ${mobileVariantLabel}` : ""}
-                          {` x ${item.quantity}`}
-                        </p>
-                        <div className="text-right font-semibold text-white">
-                          <span>{formatCurrency(lineTotal)}</span>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-semibold text-white">{item.name}</p>
+                            <p className="mt-1 text-sm text-white/70">
+                              {variantLabel} x {item.quantity}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold text-white">
+                            {formatCurrency(lineTotal)}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          {renderQuantityControls(item.id, item.selectedVariant, item.quantity)}
+                          <button
+                            type="button"
+                            onClick={() => removeCartItem(item.id, item.selectedVariant)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white/70 transition-colors hover:border-red-300 hover:text-red-200"
+                            aria-label="刪除商品"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     );
@@ -163,28 +234,50 @@ export const Cart = () => {
 
                   <div
                     className={`grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out ${
-                      isMobileExpanded ? "mt-3 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"
+                      isMobileExpanded
+                        ? "mt-3 grid-rows-[1fr] opacity-100"
+                        : "mt-0 grid-rows-[0fr] opacity-0"
                     }`}
                   >
                     <div className="overflow-hidden">
                       <div className="space-y-3">
                         {hiddenMobileItems.map((item) => {
                           const lineTotal = item.finalPrice * item.quantity;
-                          const mobileVariantLabel =
-                            mobileVariantLabels[item.selectedVariant] ?? item.selectedVariant;
+                          const variantLabel =
+                            variantLabels[item.selectedVariant] ?? item.selectedVariant;
 
                           return (
                             <div
                               key={`${item.id}-${item.selectedVariant}`}
-                              className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                             >
-                              <p className="text-sm text-white/80">
-                                <span className="font-semibold text-white">{item.name}</span>
-                                {mobileVariantLabel ? ` ${mobileVariantLabel}` : ""}
-                                {` x ${item.quantity}`}
-                              </p>
-                              <div className="text-right font-semibold text-white">
-                                <span>{formatCurrency(lineTotal)}</span>
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">
+                                    {item.name}
+                                  </p>
+                                  <p className="mt-1 text-sm text-white/70">
+                                    {variantLabel} x {item.quantity}
+                                  </p>
+                                </div>
+                                <span className="text-sm font-semibold text-white">
+                                  {formatCurrency(lineTotal)}
+                                </span>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between gap-3">
+                                {renderQuantityControls(
+                                  item.id,
+                                  item.selectedVariant,
+                                  item.quantity,
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => removeCartItem(item.id, item.selectedVariant)}
+                                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 text-white/70 transition-colors hover:border-red-300 hover:text-red-200"
+                                  aria-label="刪除商品"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
                               </div>
                             </div>
                           );
@@ -217,7 +310,7 @@ export const Cart = () => {
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-white/10 pt-4 text-lg font-bold">
-                  <span>合計</span>
+                  <span>應付合計</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
               </div>
@@ -229,17 +322,34 @@ export const Cart = () => {
                 >
                   繼續加購
                 </Link>
-                <Link
-                  to="/checkout"
+                <button
+                  type="button"
+                  onClick={handleCheckout}
                   className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                 >
                   前往結帳
-                </Link>
+                </button>
               </div>
             </aside>
           </div>
         )}
       </div>
+
+      {isAuthPromptOpen && (
+        <AuthRequiredPrompt
+          modal
+          onClose={() => setIsAuthPromptOpen(false)}
+          actions={
+            <Button
+              type="button"
+              className="h-12 flex-1 rounded-full bg-zinc-900 p-2 text-sm text-white hover:bg-zinc-800"
+              onClick={() => setIsAuthPromptOpen(false)}
+            >
+              我知道了
+            </Button>
+          }
+        />
+      )}
     </main>
   );
 };
