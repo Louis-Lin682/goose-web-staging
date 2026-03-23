@@ -371,6 +371,10 @@ export const AdminProducts = () => {
           item.sortOrder,
           workingDrafts.slice(0, index),
         );
+        workingDrafts[index] = {
+          ...item,
+          sortOrder: `${sortOrder}`,
+        };
         const payload: CreateProductPayload = {
           category: draftCategory.trim(),
           categoryOrder:
@@ -1073,4 +1077,3 @@ export const AdminProducts = () => {
     </main>
   );
 };
-

@@ -90,7 +90,14 @@ const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
 );
 
 const NoticeModal = ({ onClose }: { onClose: () => void }) => (
-  <div className="fixed inset-0 z-[110] bg-black/50 px-8 py-8" onClick={onClose}>
+  <div
+    className="fixed inset-0 z-[110] bg-black/50 px-8 py-8"
+    onClick={(event) => {
+      if (event.target === event.currentTarget) {
+        onClose();
+      }
+    }}
+  >
     <div className="mx-auto flex h-full max-w-4xl items-center justify-center">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -334,7 +341,14 @@ const AuthModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[115] bg-black/55 px-8 py-6" onClick={handleClose}>
+    <div
+      className="fixed inset-0 z-[115] bg-black/55 px-8 py-6"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
       <div className="mx-auto flex h-full max-w-lg items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
