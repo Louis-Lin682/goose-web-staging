@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ChevronRight } from "lucide-react";
 import menuItems from "../config/menu.config";
@@ -14,13 +14,18 @@ const getProductImage = (item: MenuItem) => {
   return normalizedImageUrl ? normalizedImageUrl : null;
 };
 
+const getProductDescription = (item: MenuItem) => {
+  const normalizedDescription = item.description?.trim();
+  return normalizedDescription || "暫無商品介紹。";
+};
+
 const getMobilePriceLabel = (item: MenuItem) => {
   if (typeof item.priceSmall === "number" && typeof item.priceLarge === "number") {
-    return `小 $${item.priceSmall} / 大 $${item.priceLarge}`;
+    return `撠?$${item.priceSmall} / 憭?$${item.priceLarge}`;
   }
 
   if (typeof item.priceSmall === "number") {
-    return `小 $${item.priceSmall}`;
+    return `撠?$${item.priceSmall}`;
   }
 
   return `$${item.price ?? 0}`;
@@ -125,7 +130,7 @@ export const FullMenu = () => {
         <div className="lg:hidden">
           {isProductsLoading && (
             <div className="mb-6 rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-              載入商品資料中...
+              頛??鞈?銝?..
             </div>
           )}
 
@@ -189,7 +194,7 @@ export const FullMenu = () => {
                     <button
                       onClick={() => handleAddItem(item)}
                       className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-900 transition-colors active:scale-95"
-                      aria-label={`加入 ${item.name}`}
+                      aria-label={`? ${item.name}`}
                     >
                       <Plus size={18} />
                     </button>
@@ -274,16 +279,15 @@ export const FullMenu = () => {
                           <button
                             onClick={() => handleAddItem(item)}
                             className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm transition-all duration-500 active:scale-90 group-hover:border-zinc-900 group-hover:bg-zinc-900 group-hover:text-white"
-                            aria-label={`加入 ${item.name}`}
+                            aria-label={`? ${item.name}`}
                           >
                             <Plus size={18} />
                           </button>
                         </div>
 
                         <p className="mb-6 text-xs font-medium leading-relaxed tracking-wide text-zinc-400">
-                          精選商品資訊與介紹可顯示在這裡，桌機版先保留較完整的閱讀節奏。
+                          {getProductDescription(item)}
                         </p>
-
                         <div className="text-right">
                           <span className="block text-[10px] font-bold uppercase text-zinc-300">
                             Price

@@ -10,6 +10,8 @@ import {
   markAllNotificationsAsRead as markAllNotificationsAsReadRequest,
   markNotificationAsRead as markNotificationAsReadRequest,
 } from "../lib/notifications";
+import { logout as logoutUser } from "../lib/auth";
+import { emitSessionTimeout } from "../lib/session-timeout";
 import type { AdminNotificationEntry } from "../types/notification";
 import { useAuth } from "./useAuth";
 import { AdminNotificationsContext } from "./AdminNotificationsContext";
@@ -23,7 +25,8 @@ const playNotificationSound = () => {
 
   const AudioContextClass =
     window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
 
   if (!AudioContextClass) {
     return;
@@ -35,13 +38,20 @@ const playNotificationSound = () => {
     masterGain.gain.setValueAtTime(0.18, audioContext.currentTime);
     masterGain.connect(audioContext.destination);
 
-    const playTone = (startTime: number, fromFrequency: number, toFrequency: number) => {
+    const playTone = (
+      startTime: number,
+      fromFrequency: number,
+      toFrequency: number,
+    ) => {
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
       oscillator.type = "triangle";
       oscillator.frequency.setValueAtTime(fromFrequency, startTime);
-      oscillator.frequency.exponentialRampToValueAtTime(toFrequency, startTime + 0.18);
+      oscillator.frequency.exponentialRampToValueAtTime(
+        toFrequency,
+        startTime + 0.18,
+      );
 
       gainNode.gain.setValueAtTime(0.0001, startTime);
       gainNode.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
@@ -71,8 +81,10 @@ export const AdminNotificationsProvider = ({
 }: {
   children: ReactNode;
 }) => {
-  const { isAuthReady, isAuthenticated, user } = useAuth();
-  const [notifications, setNotifications] = useState<AdminNotificationEntry[]>([]);
+  const { isAuthReady, isAuthenticated, user, signOut } = useAuth();
+  const [notifications, setNotifications] = useState<AdminNotificationEntry[]>(
+    [],
+  );
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +134,31 @@ export const AdminNotificationsProvider = ({
         return;
       }
 
-      setError(fetchError instanceof Error ? fetchError.message : "通知載入失敗。");
+      const message =
+        fetchError instanceof Error ? fetchError.message : "通知載入失敗。";
+
+      setError(message);
+
+      if (
+        fetchError instanceof Error &&
+        (fetchError.message.includes("401") ||
+          fetchError.message.toLowerCase().includes("unauthorized"))
+      ) {
+        setNotifications([]);
+        setUnreadCount(0);
+        hasHydratedRef.current = false;
+        previousUnreadCountRef.current = 0;
+
+        try {
+          await logoutUser();
+        } catch {
+          // Ignore logout network errors and still reset local auth state.
+        }
+
+        signOut();
+        emitSessionTimeout();
+        return;
+      }
     } finally {
       if (fetchId === latestFetchIdRef.current) {
         setIsLoading(false);
@@ -179,7 +215,7 @@ export const AdminNotificationsProvider = ({
     return () => {
       window.clearInterval(timer);
     };
-  }, [isAdminActive]);
+  }, [isAdminActive, signOut]);
 
   useEffect(() => {
     if (!isAdminActive) {

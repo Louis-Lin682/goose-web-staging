@@ -51,7 +51,7 @@ const inputClassName =
 const initialLoginForm = (): LoginFormState => ({
   identifier: "",
   password: "",
-  remember: false,
+  remember: true,
 });
 
 const initialRegisterForm = (): RegisterFormState => ({

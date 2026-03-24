@@ -4,6 +4,7 @@ export interface MenuItem {
   categoryOrder?: number;
   subCategory: string;
   name: string;
+  description?: string | null;
   imageUrl?: string | null;
   price?: number;
   priceSmall?: number;
@@ -27,6 +28,7 @@ export type CreateProductPayload = {
   categoryOrder?: number;
   subCategory: string;
   name: string;
+  description?: string;
   imageUrl?: string;
   price?: number;
   priceSmall?: number;
@@ -45,6 +47,7 @@ export type UpdateProductPayload = {
   categoryOrder?: number;
   subCategory?: string;
   name?: string;
+  description?: string | null;
   imageUrl?: string | null;
   price?: number;
   priceSmall?: number;

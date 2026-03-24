@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/useAuth";
 import {
@@ -15,6 +15,7 @@ import type { CreateProductPayload, MenuItem } from "../types/menu";
 type ProductDraft = {
   subCategory: string;
   name: string;
+  description: string;
   imageUrl: string;
   price: string;
   priceSmall: string;
@@ -31,6 +32,7 @@ type ProductGroup = {
 const createEmptyDraft = (): ProductDraft => ({
   subCategory: "",
   name: "",
+  description: "",
   imageUrl: "",
   price: "",
   priceSmall: "",
@@ -53,6 +55,7 @@ export const AdminProducts = () => {
   const [error, setError] = useState<string | null>(null);
   const [savingProductId, setSavingProductId] = useState<string | null>(null);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState<string | null>(null);
@@ -68,6 +71,7 @@ export const AdminProducts = () => {
   const [draftCategory, setDraftCategory] = useState("");
   const [draftCategoryOrder, setDraftCategoryOrder] = useState("");
   const [drafts, setDrafts] = useState<ProductDraft[]>([createEmptyDraft()]);
+  const productSnapshotsRef = useRef<Record<string, MenuItem>>({});
 
   useEffect(() => {
     if (!isAuthReady) return;
@@ -258,6 +262,7 @@ export const AdminProducts = () => {
         category: product.category,
         subCategory: product.subCategory,
         name: product.name,
+        description: product.description?.trim() ? product.description.trim() : null,
         imageUrl: product.imageUrl?.trim() ? product.imageUrl.trim() : null,
         price: typeof product.price === "number" ? product.price : undefined,
         priceSmall:
@@ -267,6 +272,10 @@ export const AdminProducts = () => {
         sortOrder: typeof product.sortOrder === "number" ? product.sortOrder : 0,
       });
       await refreshProducts();
+      delete productSnapshotsRef.current[product.id];
+      setEditingProductId((currentProductId) =>
+        currentProductId === product.id ? null : currentProductId,
+      );
       setSavedProductId(product.id);
       window.setTimeout(() => {
         setSavedProductId((currentProductId) =>
@@ -278,6 +287,29 @@ export const AdminProducts = () => {
     } finally {
       setSavingProductId(null);
     }
+  };
+
+  const handleStartEdit = (product: MenuItem) => {
+    productSnapshotsRef.current[product.id] = { ...product };
+    setEditingProductId(product.id);
+    setSavedProductId(null);
+    setError(null);
+  };
+
+  const handleCancelEdit = (productId: string) => {
+    const snapshot = productSnapshotsRef.current[productId];
+    if (snapshot) {
+      setProducts((currentProducts) =>
+        currentProducts.map((product) =>
+          product.id === productId ? snapshot : product,
+        ),
+      );
+      delete productSnapshotsRef.current[productId];
+    }
+    setEditingProductId((currentProductId) =>
+      currentProductId === productId ? null : currentProductId,
+    );
+    setSavedProductId(null);
   };
 
   const handleDelete = async (product: MenuItem) => {
@@ -381,6 +413,7 @@ export const AdminProducts = () => {
             activeCategoryMeta?.categoryOrder ?? toOptionalNumber(draftCategoryOrder),
           subCategory: item.subCategory.trim(),
           name: item.name.trim(),
+          description: item.description.trim() || undefined,
           imageUrl: item.imageUrl.trim() || undefined,
           price: toOptionalNumber(item.price),
           priceSmall: toOptionalNumber(item.priceSmall),
@@ -588,6 +621,7 @@ export const AdminProducts = () => {
                   <div className="space-y-4">
                     {group.items.map((product) => {
                       const isSaving = savingProductId === product.id;
+                      const isEditing = editingProductId === product.id;
                       const isDeleting = deletingProductId === product.id;
 
                       return (
@@ -609,7 +643,12 @@ export const AdminProducts = () => {
                                 onChange={(event) =>
                                   handleFieldChange(product.id, "name", event.target.value)
                                 }
-                                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                disabled={!isEditing}
+                                className={`h-11 w-full rounded-2xl border px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors ${
+                                  isEditing
+                                    ? "border-zinc-200 bg-white focus:border-orange-400"
+                                    : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                }`}
                               />
                               <div className="grid gap-3 md:grid-cols-2">
                                 <input
@@ -618,7 +657,12 @@ export const AdminProducts = () => {
                                   onChange={(event) =>
                                     handleFieldChange(product.id, "category", event.target.value)
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                 />
                                 <input
                                   type="text"
@@ -630,41 +674,15 @@ export const AdminProducts = () => {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
-                                />
-                              </div>
-                              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_5.5rem] md:items-end">
-                                <div>
-                                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                                    圖片網址
-                                  </p>
-                                  <input
-                                    type="text"
-                                    value={product.imageUrl ?? ""}
-                                    onChange={(event) =>
-                                      handleFieldChange(product.id, "imageUrl", event.target.value)
-                                    }
-                                    placeholder="/image/products/example.jpg"
-                                    className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                   />
                                 </div>
-                                <div className="overflow-hidden rounded-[1rem] border border-zinc-200 bg-zinc-100">
-                                  <div className="aspect-square">
-                                    {product.imageUrl?.trim() ? (
-                                      <img
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300">
-                                        IMG
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
                               </div>
-                            </div>
 
                             <div className="grid gap-3 md:grid-cols-2 xl:content-start">
                               <div>
@@ -678,7 +696,12 @@ export const AdminProducts = () => {
                                   onChange={(event) =>
                                     handleFieldChange(product.id, "price", event.target.value)
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                 />
                               </div>
                               <div>
@@ -696,7 +719,12 @@ export const AdminProducts = () => {
                                   onChange={(event) =>
                                     handleFieldChange(product.id, "sortOrder", event.target.value)
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                 />
                               </div>
                               <div>
@@ -714,7 +742,12 @@ export const AdminProducts = () => {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                 />
                               </div>
                               <div>
@@ -732,29 +765,126 @@ export const AdminProducts = () => {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                                  disabled={!isEditing}
+                                  className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
                                 />
                               </div>
                             </div>
 
+                  
+                          </div>
+                          <div className="grid gap-4 mt-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto]">
+                            <div>
+                              <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                商品描述
+                              </p>
+                              <textarea
+                                value={product.description ?? ""}
+                                onChange={(event) =>
+                                  handleFieldChange(
+                                    product.id,
+                                    "description",
+                                    event.target.value,
+                                  )
+                                }
+                                disabled={!isEditing}
+                                rows={4}
+                                className={`min-h-[7rem] w-full rounded-2xl border px-4 py-3 text-sm leading-6 text-zinc-900 outline-none transition-colors ${
+                                  isEditing
+                                    ? "border-zinc-200 bg-white focus:border-orange-400"
+                                    : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                }`}
+                                placeholder="輸入前台商品資訊與介紹文字"
+                              />
+                            </div>
+                            <div className="grid gap-3">
+                              <div>
+                                <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                  圖片網址
+                                </p>
+                                <input
+                                  type="text"
+                                  value={product.imageUrl ?? ""}
+                                  onChange={(event) =>
+                                    handleFieldChange(
+                                      product.id,
+                                      "imageUrl",
+                                      event.target.value,
+                                    )
+                                  }
+                                  disabled={!isEditing}
+                                  placeholder="/image/products/example.jpg"
+                                  className={`h-11 w-80 rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
+                                    isEditing
+                                      ? "border-zinc-200 bg-white focus:border-orange-400"
+                                      : "border-zinc-100 bg-zinc-100 text-zinc-500"
+                                  }`}
+                                />
+                              </div>
+                              <div className="flex justify-start">
+                                <div className="w-24 overflow-hidden rounded-[1rem] border border-zinc-200 bg-zinc-100">
+                                  <div className="aspect-square">
+                                    {product.imageUrl?.trim() ? (
+                                      <img
+                                        src={product.imageUrl}
+                                        alt={product.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300">
+                                        IMG
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                             <div className="flex flex-col justify-end gap-3">
-                              <Button
-                                type="button"
-                                onClick={() => void handleSave(product)}
-                                disabled={isSaving || isDeleting}
-                                className="h-12 rounded-full bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
-                              >
-                                {isSaving ? (
-                                  "儲存中..."
-                                ) : savedProductId === product.id ? (
-                                  <span className="inline-flex items-center gap-2">
-                                    <Check className="h-4 w-4" />
-                                    儲存成功
-                                  </span>
-                                ) : (
-                                  "儲存"
-                                )}
-                              </Button>
+                              {isEditing ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    onClick={() => void handleSave(product)}
+                                    disabled={isSaving || isDeleting}
+                                    className="h-12 rounded-full bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                                  >
+                                    {isSaving ? (
+                                      "儲存中..."
+                                    ) : savedProductId === product.id ? (
+                                      <span className="inline-flex items-center gap-2">
+                                        <Check className="h-4 w-4" />
+                                        儲存成功
+                                      </span>
+                                    ) : (
+                                      "儲存"
+                                    )}
+                                  </Button>
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleCancelEdit(product.id)}
+                                    disabled={isSaving || isDeleting}
+                                    className="h-12 rounded-full border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    取消編輯
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  onClick={() => handleStartEdit(product)}
+                                  disabled={isDeleting}
+                                  className="h-12 rounded-full bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  編輯
+                                </Button>
+                              )}
 
                               <Button
                                 type="button"
@@ -800,7 +930,8 @@ export const AdminProducts = () => {
                   </p>
                   <h2 className="mt-3 text-3xl font-black text-zinc-900">新增商品</h2>
                   <p className="mt-3 text-sm leading-7 text-zinc-500">
-                    可一次新增多個商品，但會共用同一個分類。子分類、名稱、價格與排序可逐筆填寫。                  </p>
+                    可一次新增多個商品，但會共用同一個分類。子分類、名稱、描述、價格與排序可逐筆填寫。
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -913,6 +1044,15 @@ export const AdminProducts = () => {
                         }
                         placeholder="商品名稱"
                         className="h-12 rounded-2xl border border-zinc-200 px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400 md:col-span-2"
+                      />
+                      <textarea
+                        value={draftItem.description}
+                        onChange={(event) =>
+                          handleDraftFieldChange(index, "description", event.target.value)
+                        }
+                        placeholder="商品描述"
+                        rows={4}
+                        className="min-h-[7rem] rounded-2xl border border-zinc-200 px-4 py-3 text-sm leading-6 text-zinc-900 outline-none transition-colors focus:border-orange-400 md:col-span-2"
                       />
                       <input
                         type="text"

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { logout as logoutUser } from "../lib/auth";
+import { SESSION_TIMEOUT_EVENT } from "../lib/session-timeout";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 15 * 1000;
@@ -44,6 +45,7 @@ export const SessionTimeoutManager = () => {
   const timerRef = useRef<number | null>(null);
   const lastPersistedRef = useRef(0);
   const isHandlingTimeoutRef = useRef(false);
+  const hasShownTimeoutModalRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -62,6 +64,7 @@ export const SessionTimeoutManager = () => {
     if (!isAuthenticated) {
       clearLastActivity();
       isHandlingTimeoutRef.current = false;
+      hasShownTimeoutModalRef.current = false;
       return;
     }
 
@@ -74,6 +77,29 @@ export const SessionTimeoutManager = () => {
 
       lastPersistedRef.current = now;
       writeLastActivity(now);
+    };
+
+    const handleIdleTimeout = async () => {
+      if (isHandlingTimeoutRef.current) {
+        return;
+      }
+
+      isHandlingTimeoutRef.current = true;
+
+      try {
+        await logoutUser();
+      } catch {
+        // Ignore network errors here; local logout still matters for UX.
+      } finally {
+        signOut();
+        clearLastActivity();
+        hasShownTimeoutModalRef.current = true;
+        setIsTimeoutModalOpen(true);
+        if (timerRef.current) {
+          window.clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      }
     };
 
     const scheduleTimeout = () => {
@@ -92,28 +118,6 @@ export const SessionTimeoutManager = () => {
       timerRef.current = window.setTimeout(() => {
         void handleIdleTimeout();
       }, remaining);
-    };
-
-    const handleIdleTimeout = async () => {
-      if (isHandlingTimeoutRef.current) {
-        return;
-      }
-
-      isHandlingTimeoutRef.current = true;
-
-      try {
-        await logoutUser();
-      } catch {
-        // Ignore network errors here; local logout still matters for UX.
-      } finally {
-        signOut();
-        clearLastActivity();
-        setIsTimeoutModalOpen(true);
-        if (timerRef.current) {
-          window.clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-      }
     };
 
     const markActivity = () => {
@@ -145,6 +149,22 @@ export const SessionTimeoutManager = () => {
       }
     };
 
+    const handleForcedTimeout = () => {
+      if (hasShownTimeoutModalRef.current) {
+        return;
+      }
+
+      hasShownTimeoutModalRef.current = true;
+      signOut();
+      clearLastActivity();
+      setIsTimeoutModalOpen(true);
+
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+
     persistActivity(true);
     scheduleTimeout();
 
@@ -162,6 +182,7 @@ export const SessionTimeoutManager = () => {
     });
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("storage", handleStorage);
+    window.addEventListener(SESSION_TIMEOUT_EVENT, handleForcedTimeout);
 
     return () => {
       if (timerRef.current) {
@@ -174,6 +195,7 @@ export const SessionTimeoutManager = () => {
       });
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(SESSION_TIMEOUT_EVENT, handleForcedTimeout);
     };
   }, [isAuthReady, isAuthenticated, signOut]);
 
@@ -189,15 +211,16 @@ export const SessionTimeoutManager = () => {
             Session
           </p>
           <h2 className="mt-3 text-2xl font-black text-zinc-900">
-            閒置過久，已自動登出
+            閒置太久，已自動登出
           </h2>
           <p className="mt-4 text-sm leading-7 text-zinc-600">
-            因為超過 30 分鐘沒有操作，系統已為了安全自動登出。按下確認後會回到首頁。
+            你已超過 30 分鐘沒有操作，系統已自動登出。按下確認後會返回首頁。
           </p>
           <button
             type="button"
             onClick={() => {
               setIsTimeoutModalOpen(false);
+              hasShownTimeoutModalRef.current = false;
               navigate("/", { replace: true });
             }}
             className="mt-6 h-12 w-full rounded-full bg-zinc-900 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
