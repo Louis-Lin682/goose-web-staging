@@ -50,6 +50,18 @@ const variantLabels: Record<string, string> = {
 
 const formatCurrency = (value: number) => `$${value}`;
 
+const isSyntheticLinePhone = (value: string | null | undefined) =>
+  typeof value === "string" && value.trim().startsWith("line_");
+
+const isSyntheticLineEmail = (value: string | null | undefined) =>
+  typeof value === "string" && value.trim().toLowerCase().endsWith("@login.goose.local");
+
+const getCheckoutPhone = (value: string | null | undefined) =>
+  isSyntheticLinePhone(value) ? "" : (value ?? "");
+
+const getCheckoutEmail = (value: string | null | undefined) =>
+  isSyntheticLineEmail(value) ? "" : (value ?? "");
+
 const getShippingFee = (subtotal: number, deliveryMethod: OrderDeliveryMethod) => {
   if (deliveryMethod === "pickup") {
     return 0;
@@ -252,8 +264,8 @@ export const Checkout = () => {
   const [form, setForm] = useState<CheckoutFormState>(() =>
     buildInitialForm(
       user?.name ?? "",
-      user?.phone ?? "",
-      user?.email ?? "",
+      getCheckoutPhone(user?.phone),
+      getCheckoutEmail(user?.email),
       user?.address ?? "",
     ),
   );
@@ -278,17 +290,11 @@ export const Checkout = () => {
     setForm((prev) => ({
       ...prev,
       recipientName: user.name,
-      recipientPhone: user.phone,
-      recipientEmail: user.email,
+      recipientPhone: getCheckoutPhone(user.phone),
+      recipientEmail: getCheckoutEmail(user.email),
       recipientAddress: prev.recipientAddress.trim() ? prev.recipientAddress : user.address ?? "",
     }));
-  }, [
-    form.recipientEmail,
-    form.recipientName,
-    form.recipientPhone,
-    isUsingMemberInfo,
-    user,
-  ]);
+  }, [isUsingMemberInfo, user]);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.finalPrice * item.quantity, 0),
@@ -314,8 +320,8 @@ export const Checkout = () => {
       setForm((prev) => ({
         ...prev,
         recipientName: user.name,
-        recipientPhone: user.phone,
-        recipientEmail: user.email,
+        recipientPhone: getCheckoutPhone(user.phone),
+        recipientEmail: getCheckoutEmail(user.email),
         recipientAddress: user.address ?? "",
       }));
     }

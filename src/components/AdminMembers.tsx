@@ -26,6 +26,18 @@ const formatDate = (value: string) =>
 const MIN_ACTION_LOADING_MS = 650;
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const isSyntheticLinePhone = (value: string | null | undefined) =>
+  typeof value === "string" && value.trim().startsWith("line_");
+
+const isSyntheticLineEmail = (value: string | null | undefined) =>
+  typeof value === "string" && value.trim().toLowerCase().endsWith("@login.goose.local");
+
+const formatMemberPhone = (value: string | null | undefined) =>
+  isSyntheticLinePhone(value) ? "未填寫" : (value?.trim() || "未填寫");
+
+const formatMemberEmail = (value: string | null | undefined) =>
+  isSyntheticLineEmail(value) ? "未填寫" : (value?.trim() || "未填寫");
+
 const roleLabels: Record<UserRole, string> = {
   CUSTOMER: "一般會員",
   ADMIN: "管理員",
@@ -45,8 +57,8 @@ type EditFormState = {
 
 const buildEditForm = (member: AdminUserEntry): EditFormState => ({
   name: member.name,
-  phone: member.phone,
-  email: member.email,
+  phone: isSyntheticLinePhone(member.phone) ? "" : member.phone,
+  email: isSyntheticLineEmail(member.email) ? "" : member.email,
   address: member.address ?? "",
 });
 
@@ -370,14 +382,16 @@ export const AdminMembers = () => {
                             <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
                               電話
                             </p>
-                            <p className="mt-2 font-semibold text-zinc-900">{member.phone}</p>
+                            <p className="mt-2 font-semibold text-zinc-900">
+                              {formatMemberPhone(member.phone)}
+                            </p>
                           </div>
                           <div>
                             <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
                               Email
                             </p>
                             <p className="mt-2 break-all font-semibold text-zinc-900">
-                              {member.email}
+                              {formatMemberEmail(member.email)}
                             </p>
                           </div>
                           <div className="md:col-span-2">
