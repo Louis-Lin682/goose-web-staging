@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
+﻿import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
@@ -49,18 +49,6 @@ const variantLabels: Record<string, string> = {
 };
 
 const formatCurrency = (value: number) => `$${value}`;
-
-const isSyntheticLinePhone = (value: string | null | undefined) =>
-  typeof value === "string" && value.trim().startsWith("line_");
-
-const isSyntheticLineEmail = (value: string | null | undefined) =>
-  typeof value === "string" && value.trim().toLowerCase().endsWith("@login.goose.local");
-
-const getCheckoutPhone = (value: string | null | undefined) =>
-  isSyntheticLinePhone(value) ? "" : (value ?? "");
-
-const getCheckoutEmail = (value: string | null | undefined) =>
-  isSyntheticLineEmail(value) ? "" : (value ?? "");
 
 const getShippingFee = (subtotal: number, deliveryMethod: OrderDeliveryMethod) => {
   if (deliveryMethod === "pickup") {
@@ -255,46 +243,13 @@ const OrderSummary = ({
 
 export const Checkout = () => {
   const { cart, totalItems, clearCart } = useCart();
-  const { user, isAuthenticated, isAuthReady } = useAuth();
-  const [isUsingMemberInfo, setIsUsingMemberInfo] = useState(Boolean(user));
+  const { isAuthenticated, isAuthReady } = useAuth();
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
-  const [form, setForm] = useState<CheckoutFormState>(() =>
-    buildInitialForm(
-      user?.name ?? "",
-      getCheckoutPhone(user?.phone),
-      getCheckoutEmail(user?.email),
-      user?.address ?? "",
-    ),
-  );
+  const [form, setForm] = useState<CheckoutFormState>(() => buildInitialForm());
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const hasExistingContactInfo = Boolean(
-      form.recipientName.trim() || form.recipientPhone.trim() || form.recipientEmail.trim(),
-    );
-
-    if (!isUsingMemberInfo && hasExistingContactInfo) {
-      return;
-    }
-
-    if (!isUsingMemberInfo) {
-      setIsUsingMemberInfo(true);
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      recipientName: user.name,
-      recipientPhone: getCheckoutPhone(user.phone),
-      recipientEmail: getCheckoutEmail(user.email),
-      recipientAddress: prev.recipientAddress.trim() ? prev.recipientAddress : user.address ?? "",
-    }));
-  }, [isUsingMemberInfo, user]);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.finalPrice * item.quantity, 0),
@@ -313,19 +268,6 @@ export const Checkout = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleUseMemberInfoChange = (checked: boolean) => {
-    setIsUsingMemberInfo(checked);
-
-    if (checked && user) {
-      setForm((prev) => ({
-        ...prev,
-        recipientName: user.name,
-        recipientPhone: getCheckoutPhone(user.phone),
-        recipientEmail: getCheckoutEmail(user.email),
-        recipientAddress: user.address ?? "",
-      }));
-    }
-  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -529,25 +471,11 @@ export const Checkout = () => {
             </div>
 
             <section className="rounded-[1.75rem] bg-zinc-50 p-5">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
-                    Contact
-                  </p>
-                  <h2 className="mt-2 text-xl font-black text-zinc-900">收件資訊</h2>
-                </div>
-
-                {user && (
-                  <label className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={isUsingMemberInfo}
-                      onChange={(event) => handleUseMemberInfoChange(event.target.checked)}
-                      className="h-4 w-4 rounded border-zinc-300"
-                    />
-                    自動帶入會員資料
-                  </label>
-                )}
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
+                  Contact
+                </p>
+                <h2 className="mt-2 text-xl font-black text-zinc-900">收件資訊</h2>
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -771,3 +699,4 @@ export const Checkout = () => {
     </main>
   );
 };
+

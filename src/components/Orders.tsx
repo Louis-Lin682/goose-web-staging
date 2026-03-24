@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
@@ -213,7 +213,18 @@ export const Orders = () => {
                   key={order.id}
                   className="overflow-hidden rounded-[2rem] border border-zinc-100 bg-white shadow-sm"
                 >
-                  <div className="px-5 py-5 md:px-6">
+                  <div
+                    className="cursor-pointer px-5 py-5 md:px-6"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleOrder(order.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggleOrder(order.id);
+                      }
+                    }}
+                  >
                     <div className="flex items-start justify-between gap-4 md:hidden">
                       <div>
                         <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
@@ -236,18 +247,13 @@ export const Orders = () => {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => toggleOrder(order.id)}
-                        className="rounded-full border border-zinc-200 p-2 text-zinc-500 transition-colors hover:border-orange-300 hover:text-orange-600"
-                        aria-label={isExpanded ? "收合訂單明細" : "展開訂單明細"}
-                      >
+                      <div className="rounded-full border border-zinc-200 p-2 text-zinc-500 transition-colors hover:border-orange-300 hover:text-orange-600">
                         <ChevronDown
                           className={`h-5 w-5 transition-transform duration-200 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
-                      </button>
+                      </div>
                     </div>
 
                     <div className="hidden items-start justify-between gap-6 md:flex">
@@ -305,18 +311,14 @@ export const Orders = () => {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => toggleOrder(order.id)}
-                        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-orange-300 hover:text-orange-600"
-                      >
+                      <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:border-orange-300 hover:text-orange-600">
                         {isExpanded ? "收合明細" : "展開明細"}
                         <ChevronDown
                           className={`h-4 w-4 transition-transform duration-200 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
-                      </button>
+                      </div>
                     </div>
                   </div>
 

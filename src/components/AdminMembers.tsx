@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AdminActionLoadingOverlay } from "./AdminActionLoadingOverlay";
 import { useAuth } from "../context/useAuth";
@@ -52,14 +52,12 @@ type EditFormState = {
   name: string;
   phone: string;
   email: string;
-  address: string;
 };
 
 const buildEditForm = (member: AdminUserEntry): EditFormState => ({
   name: member.name,
   phone: isSyntheticLinePhone(member.phone) ? "" : member.phone,
   email: isSyntheticLineEmail(member.email) ? "" : member.email,
-  address: member.address ?? "",
 });
 
 export const AdminMembers = () => {
@@ -188,7 +186,6 @@ export const AdminMembers = () => {
       name: editForm.name.trim(),
       phone: editForm.phone.trim(),
       email: editForm.email.trim(),
-      address: editForm.address.trim() || null,
     };
 
     try {
@@ -394,14 +391,6 @@ export const AdminMembers = () => {
                               {formatMemberEmail(member.email)}
                             </p>
                           </div>
-                          <div className="md:col-span-2">
-                            <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                              地址
-                            </p>
-                            <p className="mt-2 font-semibold text-zinc-900">
-                              {member.address?.trim() || "尚未建立收件地址"}
-                            </p>
-                          </div>
                           <div>
                             <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
                               建立時間
@@ -497,7 +486,7 @@ export const AdminMembers = () => {
             </p>
             <h2 className="mt-3 text-3xl font-black text-zinc-900">編輯會員資料</h2>
             <p className="mt-4 text-sm leading-7 text-zinc-500">
-              可直接更新會員姓名、電話、Email 與地址，方便後續結帳資料自動帶入。
+              可直接更新會員姓名、電話與 Email，方便維護會員聯絡資訊。
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -531,18 +520,6 @@ export const AdminMembers = () => {
                   type="email"
                   value={editForm.email}
                   onChange={(event) => handleEditFieldChange("email", event.target.value)}
-                  className={inputClassName}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                  地址
-                </label>
-                <input
-                  type="text"
-                  value={editForm.address}
-                  onChange={(event) => handleEditFieldChange("address", event.target.value)}
-                  placeholder="輸入完整地址"
                   className={inputClassName}
                 />
               </div>

@@ -1,13 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, KeyRound, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   forgotPassword as forgotPasswordRequest,
   resetPassword as resetPasswordRequest,
 } from "../lib/auth";
-
-type ForgotPasswordView = "request" | "reset";
 
 type RequestState = {
   identifier: string;
@@ -55,9 +53,6 @@ const formatExpiry = (value?: string) => {
 export const ForgotPassword = () => {
   const [searchParams] = useSearchParams();
   const tokenFromQuery = searchParams.get("token") ?? "";
-  const [view, setView] = useState<ForgotPasswordView>(
-    tokenFromQuery ? "reset" : "request",
-  );
   const [requestForm, setRequestForm] = useState<RequestState>(initialRequestState);
   const [resetForm, setResetForm] = useState<ResetState>(() => ({
     ...initialResetState(),
@@ -81,7 +76,6 @@ export const ForgotPassword = () => {
       return;
     }
 
-    setView("reset");
     setResetForm((prev) => ({
       ...prev,
       token: tokenFromQuery,
@@ -92,6 +86,7 @@ export const ForgotPassword = () => {
     () => formatExpiry(debugResetExpiry ?? undefined),
     [debugResetExpiry],
   );
+  const canReset = Boolean(tokenFromQuery || resetForm.token.trim());
 
   const handleRequestSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -117,7 +112,6 @@ export const ForgotPassword = () => {
         }));
         setDebugResetLink(response.resetLink ?? null);
         setDebugResetExpiry(response.expiresAt ?? null);
-        setView("reset");
       }
     } catch (error) {
       setRequestFeedback({
@@ -187,7 +181,7 @@ export const ForgotPassword = () => {
   return (
     <main className="mx-auto flex min-h-[calc(100vh-14rem)] w-full max-w-5xl items-center px-6 py-28">
       <div className="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-[2rem] border border-zinc-200 bg-white/90 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.05)] backdrop-blur">
+        <section className="rounded-[2rem] border border-zinc-200 bg-white/90 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.05)] backdrop-blur lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-2xl">
           <p className="text-xs font-black uppercase tracking-[0.36em] text-orange-600">
             Account Recovery
           </p>
@@ -195,40 +189,14 @@ export const ForgotPassword = () => {
             忘記密碼
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-600">
-            先輸入你的手機或 Email 取得 reset token，再用新密碼完成重設。等你後面要接
-            mail 或簡訊時，這套 token 流程可以直接延用。
+            先輸入註冊用 Email 取得重設連結，收到信後再回來設定新密碼。
           </p>
 
-          <div className="mt-8 grid grid-cols-2 rounded-2xl bg-zinc-100 p-1">
-            <button
-              type="button"
-              onClick={() => setView("request")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
-                view === "request"
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-500"
-              }`}
-            >
-              取得 Token
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("reset")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
-                view === "reset"
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-500"
-              }`}
-            >
-              重設密碼
-            </button>
-          </div>
-
           <div className="mt-8">
-            {view === "request" ? (
+            {!canReset ? (
               <form className="space-y-5" onSubmit={handleRequestSubmit}>
                 <label className="block text-sm font-semibold text-zinc-900">
-                  手機號碼或 Email
+                  Email
                 </label>
                 <input
                   type="text"
@@ -237,7 +205,7 @@ export const ForgotPassword = () => {
                   onChange={(event) =>
                     setRequestForm({ identifier: event.target.value })
                   }
-                  placeholder="09xxxxxxxx 或 you@example.com"
+                  placeholder="you@example.com"
                   className={inputClassName}
                 />
 
@@ -275,14 +243,14 @@ export const ForgotPassword = () => {
                   disabled={isRequestSubmitting}
                   className="h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-transform hover:bg-zinc-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:active:scale-100"
                 >
-                  {isRequestSubmitting ? "送出中..." : "取得 Reset Token"}
+                  {isRequestSubmitting ? "送出中..." : "取得重設憑證"}
                 </Button>
               </form>
             ) : (
               <form className="space-y-5" onSubmit={handleResetSubmit}>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                    Reset Token
+                    重設憑證
                   </label>
                   <input
                     type="text"
@@ -349,50 +317,27 @@ export const ForgotPassword = () => {
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  disabled={isResetSubmitting}
-                  className="h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-transform hover:bg-zinc-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:active:scale-100"
-                >
-                  {isResetSubmitting ? "重設中..." : "更新密碼"}
-                </Button>
+                {resetFeedback?.type === "success" ? (
+                  <Link
+                    to="/"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-900 text-sm font-semibold text-white transition-transform hover:bg-zinc-800 active:scale-[0.98]"
+                  >
+                    返回首頁
+                  </Link>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isResetSubmitting}
+                    className="h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-transform hover:bg-zinc-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:active:scale-100"
+                  >
+                    {isResetSubmitting ? "重設中..." : "更新密碼"}
+                  </Button>
+                )}
               </form>
             )}
           </div>
         </section>
 
-        <aside className="flex flex-col justify-between rounded-[2rem] border border-zinc-200 bg-zinc-50/90 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.04)]">
-          <div>
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-orange-600 shadow-sm">
-              <KeyRound className="h-6 w-6" />
-            </div>
-            <h2 className="mt-6 text-2xl font-black text-zinc-900">
-              建議流程
-            </h2>
-            <div className="mt-6 space-y-4 text-sm leading-7 text-zinc-600">
-              <p>1. 輸入手機號碼或 Email，先取得 reset token。</p>
-              <p>2. 測試環境會直接顯示 token；正式版之後可以改成寄 Email 或簡訊。</p>
-              <p>3. 輸入新密碼後，原本密碼會立刻失效。</p>
-            </div>
-          </div>
-
-          <div className="mt-10 space-y-3 rounded-[1.75rem] bg-white px-5 py-5 text-sm text-zinc-600 shadow-sm">
-            <div className="flex items-center gap-2 font-semibold text-zinc-900">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              完成後可直接回登入
-            </div>
-            <p>
-              密碼重設成功後，回首頁打開登入視窗，用新密碼重新登入即可。
-            </p>
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 font-semibold text-orange-600"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              返回首頁
-            </Link>
-          </div>
-        </aside>
       </div>
     </main>
   );
