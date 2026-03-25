@@ -36,7 +36,6 @@ type OrderSummaryProps = {
   shippingFee: number;
   codFee: number;
   finalTotal: number;
-  deliveryMethod: OrderDeliveryMethod;
   paymentMethod: OrderPaymentMethod;
 };
 
@@ -182,7 +181,6 @@ const OrderSummary = ({
   shippingFee,
   codFee,
   finalTotal,
-  deliveryMethod,
   paymentMethod,
 }: OrderSummaryProps) => {
   const { cart } = useCart();
@@ -492,7 +490,6 @@ export const Checkout = () => {
                 shippingFee={shippingFee}
                 codFee={codFee}
                 finalTotal={finalTotal}
-                deliveryMethod={form.deliveryMethod}
                 paymentMethod={form.paymentMethod}
               />
             </div>
@@ -736,7 +733,6 @@ export const Checkout = () => {
               shippingFee={shippingFee}
               codFee={codFee}
               finalTotal={finalTotal}
-              deliveryMethod={form.deliveryMethod}
               paymentMethod={form.paymentMethod}
             />
           </div>

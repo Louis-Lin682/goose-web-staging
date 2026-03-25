@@ -143,7 +143,7 @@ export const AdminLayout = () => {
                 className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
               >
                 <Home className="h-4 w-4" />
-                回到前台
+                前台
               </NavLink>
               {isAuthenticated ? (
                 <button
@@ -186,7 +186,7 @@ export const AdminLayout = () => {
                     className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
                   >
                     <Home className="h-4 w-4" />
-                    回到前台
+                    前台
                   </NavLink>
                   {isAuthenticated ? (
                     <button

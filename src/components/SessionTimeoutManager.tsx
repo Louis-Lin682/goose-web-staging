@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { logout as logoutUser } from "../lib/auth";
+import { getCurrentUser, logout as logoutUser } from "../lib/auth";
 import { SESSION_TIMEOUT_EVENT } from "../lib/session-timeout";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 15 * 1000;
+const SESSION_KEEPALIVE_MS = 5 * 60 * 1000;
 const ACTIVITY_STORAGE_KEY = "goose_last_activity_at";
 
 const readLastActivity = () => {
@@ -44,6 +45,7 @@ export const SessionTimeoutManager = () => {
   const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
   const lastPersistedRef = useRef(0);
+  const lastKeepAliveRef = useRef(0);
   const isHandlingTimeoutRef = useRef(false);
   const hasShownTimeoutModalRef = useRef(false);
 
@@ -65,8 +67,25 @@ export const SessionTimeoutManager = () => {
       clearLastActivity();
       isHandlingTimeoutRef.current = false;
       hasShownTimeoutModalRef.current = false;
+      lastKeepAliveRef.current = 0;
       return;
     }
+
+    const showTimeoutModal = () => {
+      if (hasShownTimeoutModalRef.current) {
+        return;
+      }
+
+      hasShownTimeoutModalRef.current = true;
+      signOut();
+      clearLastActivity();
+      setIsTimeoutModalOpen(true);
+
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
 
     const persistActivity = (force = false) => {
       const now = Date.now();
@@ -77,6 +96,32 @@ export const SessionTimeoutManager = () => {
 
       lastPersistedRef.current = now;
       writeLastActivity(now);
+    };
+
+    const keepSessionAlive = async (force = false) => {
+      const now = Date.now();
+
+      if (!force && now - lastKeepAliveRef.current < SESSION_KEEPALIVE_MS) {
+        return;
+      }
+
+      lastKeepAliveRef.current = now;
+
+      try {
+        const response = await getCurrentUser();
+
+        if (!response.user) {
+          showTimeoutModal();
+        }
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes("401") ||
+            error.message.toLowerCase().includes("unauthorized"))
+        ) {
+          showTimeoutModal();
+        }
+      }
     };
 
     const handleIdleTimeout = async () => {
@@ -93,8 +138,10 @@ export const SessionTimeoutManager = () => {
       } finally {
         signOut();
         clearLastActivity();
+        lastKeepAliveRef.current = 0;
         hasShownTimeoutModalRef.current = true;
         setIsTimeoutModalOpen(true);
+
         if (timerRef.current) {
           window.clearTimeout(timerRef.current);
           timerRef.current = null;
@@ -127,6 +174,7 @@ export const SessionTimeoutManager = () => {
 
       persistActivity();
       scheduleTimeout();
+      void keepSessionAlive();
     };
 
     const handleVisibilityChange = () => {
@@ -140,6 +188,7 @@ export const SessionTimeoutManager = () => {
 
         persistActivity(true);
         scheduleTimeout();
+        void keepSessionAlive(true);
       }
     };
 
@@ -150,22 +199,11 @@ export const SessionTimeoutManager = () => {
     };
 
     const handleForcedTimeout = () => {
-      if (hasShownTimeoutModalRef.current) {
-        return;
-      }
-
-      hasShownTimeoutModalRef.current = true;
-      signOut();
-      clearLastActivity();
-      setIsTimeoutModalOpen(true);
-
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
+      showTimeoutModal();
     };
 
     persistActivity(true);
+    void keepSessionAlive(true);
     scheduleTimeout();
 
     const activityEvents: Array<keyof WindowEventMap> = [
@@ -214,7 +252,7 @@ export const SessionTimeoutManager = () => {
             閒置太久，已自動登出
           </h2>
           <p className="mt-4 text-sm leading-7 text-zinc-600">
-            你已超過 30 分鐘沒有操作，系統已自動登出。按下確認後會返回首頁。
+            你已超過 30 分鐘沒有操作，系統已為了安全自動登出。按下確認後會返回首頁。
           </p>
           <button
             type="button"

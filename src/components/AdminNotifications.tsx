@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Bell, CheckCheck, ExternalLink } from "lucide-react";
+﻿import { useMemo, useState } from "react";
+import { Bell, CheckCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { useAdminNotifications } from "../context/useAdminNotifications";
@@ -22,9 +22,7 @@ export const AdminNotifications = () => {
     isLoading,
     error: notificationsError,
     markNotificationAsRead,
-    markAllNotificationsAsRead,
   } = useAdminNotifications();
-  const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [markingNotificationId, setMarkingNotificationId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -45,24 +43,12 @@ export const AdminNotifications = () => {
     try {
       await markNotificationAsRead(notificationId);
     } catch (markError) {
-      setActionError(markError instanceof Error ? markError.message : "通知更新失敗。");
+      setActionError(markError instanceof Error ? markError.message : "標記通知失敗。");
     } finally {
       setMarkingNotificationId(null);
     }
   };
 
-  const markAllAsRead = async () => {
-    setIsMarkingAll(true);
-    setActionError(null);
-
-    try {
-      await markAllNotificationsAsRead();
-    } catch (markError) {
-      setActionError(markError instanceof Error ? markError.message : "通知更新失敗。");
-    } finally {
-      setIsMarkingAll(false);
-    }
-  };
 
   const openOrderFromNotification = async (notificationId: string, isRead: boolean) => {
     if (!isRead) {
@@ -133,8 +119,7 @@ export const AdminNotifications = () => {
               新訂單通知
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-              這裡會集中顯示最新訂單提醒，未讀和已讀通知會分開呈現，方便你快速處理新單。
-            </p>
+              這裡會集中顯示最新訂單提醒，未讀和已讀通知會分開呈現，方便你快速處理新單。</p>
           </div>
 
           <div className="grid grid-cols-3 gap-4 rounded-3xl bg-zinc-50 p-4">
@@ -154,8 +139,7 @@ export const AdminNotifications = () => {
             </div>
             <div className="min-w-[96px] text-center">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                已處理
-              </p>
+                已處理              </p>
               <p className="mt-2 text-2xl font-black text-zinc-900">{readCount}</p>
             </div>
           </div>
@@ -190,37 +174,6 @@ export const AdminNotifications = () => {
                 <Bell className="h-6 w-6" />
               </div>
             </div>
-
-            {latestNotification?.orderNumber && (
-              <div className="mt-6 rounded-2xl bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-                <p>
-                  訂單編號
-                  <span className="ml-2 font-semibold text-zinc-900">
-                    {latestNotification.orderNumber}
-                  </span>
-                </p>
-                <p className="mt-2">
-                  通知時間
-                  <span className="ml-2 font-semibold text-zinc-900">
-                    {formatDate(latestNotification.createdAt)}
-                  </span>
-                </p>
-                <Link
-                  to="/admin/orders"
-                  onClick={async (event) => {
-                    event.preventDefault();
-                    await openOrderFromNotification(
-                      latestNotification.id,
-                      latestNotification.isRead,
-                    );
-                  }}
-                  className="mt-4 inline-flex items-center gap-2 font-semibold text-orange-600"
-                >
-                  前往訂單管理
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-              </div>
-            )}
           </section>
 
           <section className="rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
@@ -242,10 +195,6 @@ export const AdminNotifications = () => {
               <div className="rounded-2xl bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
                 <p className="font-semibold text-zinc-900">未讀通知</p>
                 <p className="mt-2">目前共有 {unreadCount} 筆新的未讀訂單提醒。</p>
-              </div>
-              <div className="rounded-2xl bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
-                <p className="font-semibold text-zinc-900">處理方式</p>
-                <p className="mt-2">點進該筆訂單後，通知就會自動從未讀列表移出，不會一直留在畫面上。</p>
               </div>
             </div>
           </section>

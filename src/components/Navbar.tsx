@@ -186,16 +186,8 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => (
             </p>
             <p>2. 離島地區不適用以上運費計算方式，請來電詢問。</p>
             <p>
-              3. 可選取黑貓店取，讓您成為時間的主人。到站後黑貓宅急便會通知前往站所取件，不用在家等待。
+              3. 可選擇本店自取，待店家通知取貨時間後再前往領取，省去等待宅配的時間。
             </p>
-            <a
-              href="http://103.234.81.15/TCAT/CAT0001/CAT0001MM1"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex text-orange-600 underline underline-offset-4"
-            >
-              查詢寄取站所地址
-            </a>
           </section>
 
           <section className="grid gap-6 rounded-[1.75rem] bg-zinc-50 px-5 py-5 text-sm text-zinc-600 md:grid-cols-2">
