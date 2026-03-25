@@ -45,6 +45,15 @@ const roleLabels: Record<UserRole, string> = {
 
 const roleOptions: UserRole[] = ["CUSTOMER", "ADMIN"];
 
+const sortMembers = (members: AdminUserEntry[]) =>
+  [...members].sort((a, b) => {
+    if (a.role !== b.role) {
+      return a.role === "ADMIN" ? -1 : 1;
+    }
+
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
 const inputClassName =
   "h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400";
 
@@ -94,7 +103,7 @@ export const AdminMembers = () => {
           return;
         }
 
-        setMembers(response.users);
+        setMembers(sortMembers(response.users));
       } catch (fetchError) {
         if (!isMounted) {
           return;
@@ -145,8 +154,10 @@ export const AdminMembers = () => {
     try {
       await runMemberAction("更新會員角色中...", () => updateUserRole(userId, { role }));
       setMembers((currentMembers) =>
-        currentMembers.map((member) =>
-          member.id === userId ? { ...member, role } : member,
+        sortMembers(
+          currentMembers.map((member) =>
+            member.id === userId ? { ...member, role } : member,
+          ),
         ),
       );
 
@@ -194,8 +205,10 @@ export const AdminMembers = () => {
       );
 
       setMembers((currentMembers) =>
-        currentMembers.map((member) =>
-          member.id === editingMember.id ? response.user : member,
+        sortMembers(
+          currentMembers.map((member) =>
+            member.id === editingMember.id ? response.user : member,
+          ),
         ),
       );
 
@@ -302,25 +315,25 @@ export const AdminMembers = () => {
             <div className="grid grid-cols-2 gap-4 rounded-3xl bg-zinc-50 p-4 md:grid-cols-4">
               <div className="min-w-[96px] text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                  Members
+                  會員總數
                 </p>
                 <p className="mt-2 text-2xl font-black text-zinc-900">{stats.total}</p>
               </div>
               <div className="min-w-[96px] text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                  Admins
+                  管理員
                 </p>
                 <p className="mt-2 text-2xl font-black text-zinc-900">{stats.admins}</p>
               </div>
               <div className="min-w-[96px] text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                  Customers
+                  一般會員
                 </p>
                 <p className="mt-2 text-2xl font-black text-zinc-900">{stats.customers}</p>
               </div>
               <div className="min-w-[96px] text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                  Orders
+                  訂單總數
                 </p>
                 <p className="mt-2 text-2xl font-black text-zinc-900">{stats.orders}</p>
               </div>
@@ -414,7 +427,11 @@ export const AdminMembers = () => {
                         <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
                           目前角色
                         </p>
-                        <p className="mt-3 text-xl font-black text-zinc-900">
+                        <p
+                          className={`mt-3 text-xl font-black ${
+                            member.role === "ADMIN" ? "text-orange-600" : "text-zinc-900"
+                          }`}
+                        >
                           {roleLabels[member.role]}
                         </p>
                         <p className="mt-3 text-sm leading-7 text-zinc-500">
@@ -432,7 +449,9 @@ export const AdminMembers = () => {
                             onChange={(event) =>
                               void handleRoleChange(member.id, event.target.value as UserRole)
                             }
-                            className="mt-3 h-11 w-full rounded-full border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors focus:border-orange-400"
+                            className={`mt-3 h-11 w-full rounded-full border border-zinc-200 bg-white px-4 text-sm font-semibold outline-none transition-colors focus:border-orange-400 ${
+                              member.role === "ADMIN" ? "text-orange-600" : "text-zinc-900"
+                            }`}
                           >
                             {roleOptions.map((role) => (
                               <option key={role} value={role}>

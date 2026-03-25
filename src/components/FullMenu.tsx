@@ -102,6 +102,16 @@ export const FullMenu = () => {
     setIsDrawerOpen(true);
   };
 
+  const handleItemKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>,
+    item: MenuItem,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleAddItem(item);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white pb-24 pt-32 lg:pb-32 lg:pt-48">
       <div className="mx-auto max-w-7xl px-5 lg:px-8">
@@ -164,7 +174,11 @@ export const FullMenu = () => {
               {filteredItems.map((item) => (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleAddItem(item)}
+                  onKeyDown={(event) => handleItemKeyDown(event, item)}
+                  className="cursor-pointer rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm transition-colors hover:border-zinc-200"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100">
@@ -193,6 +207,7 @@ export const FullMenu = () => {
 
                     <button
                       onClick={() => handleAddItem(item)}
+                      type="button"
                       className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-900 transition-colors active:scale-95"
                       aria-label={`? ${item.name}`}
                     >
@@ -246,7 +261,11 @@ export const FullMenu = () => {
                 {filteredItems.map((item) => (
                   <div
                     key={item.id}
-                    className="group relative border-b border-zinc-100 pb-10 transition-colors duration-500 hover:border-zinc-900"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleAddItem(item)}
+                    onKeyDown={(event) => handleItemKeyDown(event, item)}
+                    className="group relative cursor-pointer border-b border-zinc-100 pb-10 transition-colors duration-500 hover:border-zinc-900"
                   >
                     <div className="flex items-start gap-6">
                       <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 shadow-inner transition-all duration-700 group-hover:grayscale-0">
@@ -278,6 +297,7 @@ export const FullMenu = () => {
 
                           <button
                             onClick={() => handleAddItem(item)}
+                            type="button"
                             className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white shadow-sm transition-all duration-500 active:scale-90 group-hover:border-zinc-900 group-hover:bg-zinc-900 group-hover:text-white"
                             aria-label={`? ${item.name}`}
                           >

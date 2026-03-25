@@ -346,10 +346,10 @@ export const Checkout = () => {
               返回首頁
             </Link>
             <Link
-              to="/fullMenu"
+              to="/orders"
               className="inline-flex rounded-full border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-900 transition-colors hover:bg-white"
             >
-              繼續加購
+              訂單查詢
             </Link>
           </div>
         </div>

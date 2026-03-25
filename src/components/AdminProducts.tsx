@@ -68,6 +68,7 @@ export const AdminProducts = () => {
   const [createErrorDialog, setCreateErrorDialog] = useState<string | null>(null);
   const [pendingDeleteCategory, setPendingDeleteCategory] =
     useState<ProductGroup | null>(null);
+  const [pendingDeleteProduct, setPendingDeleteProduct] = useState<MenuItem | null>(null);
   const [draftCategory, setDraftCategory] = useState("");
   const [draftCategoryOrder, setDraftCategoryOrder] = useState("");
   const [drafts, setDrafts] = useState<ProductDraft[]>([createEmptyDraft()]);
@@ -313,17 +314,22 @@ export const AdminProducts = () => {
   };
 
   const handleDelete = async (product: MenuItem) => {
-    const confirmed = window.confirm(`確定要刪除商品「${product.name}」嗎？`);
-    if (!confirmed) return;
-    setDeletingProductId(product.id);
+    setPendingDeleteProduct(product);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!pendingDeleteProduct) return;
+
+    setDeletingProductId(pendingDeleteProduct.id);
     setError(null);
     try {
-      await deleteProduct(product.id);
-      setProducts((current) => current.filter((item) => item.id !== product.id));
+      await deleteProduct(pendingDeleteProduct.id);
+      setProducts((current) => current.filter((item) => item.id !== pendingDeleteProduct.id));
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "刪除商品失敗。");
     } finally {
       setDeletingProductId(null);
+      setPendingDeleteProduct(null);
     }
   };
 
@@ -1153,6 +1159,39 @@ export const AdminProducts = () => {
                   取消
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteProduct && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-600">
+              商品
+            </p>
+            <h3 className="mt-3 text-2xl font-black text-zinc-900">刪除商品</h3>
+            <p className="mt-4 text-sm leading-7 text-zinc-600">
+              確定要刪除商品「{pendingDeleteProduct.name}」嗎？
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                onClick={() => void confirmDeleteProduct()}
+                disabled={deletingProductId === pendingDeleteProduct.id}
+                className="h-11 flex-1 rounded-full bg-red-600 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              >
+                {deletingProductId === pendingDeleteProduct.id ? "刪除中..." : "確認刪除"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingDeleteProduct(null)}
+                disabled={deletingProductId === pendingDeleteProduct.id}
+                className="h-11 flex-1 rounded-full border-zinc-200 text-sm text-zinc-900 hover:bg-zinc-100"
+              >
+                取消
+              </Button>
             </div>
           </div>
         </div>

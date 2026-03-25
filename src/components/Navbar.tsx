@@ -79,18 +79,20 @@ const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
       <div className="h-px flex-1 bg-zinc-200" />
     </div>
 
-    <button
+    <motion.button
       type="button"
       onClick={() => {
         window.location.assign(getLineAuthStartUrl(mode));
       }}
-      className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#05b24b]"
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+      className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#05b24b] active:scale-[0.97] active:bg-[#049c42]"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[10px] font-black tracking-[0.16em] text-[#06C755]">
         LINE
       </span>
       <span>{mode === "login" ? "LINE 快速登入" : "LINE 快速註冊 / 登入"}</span>
-    </button>
+    </motion.button>
 
     <p className="text-center text-xs leading-5 text-zinc-500">
       目前先預留介面位置，之後可直接接上 LINE Login。
@@ -158,17 +160,17 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => (
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-zinc-50 text-zinc-900">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">訂購金額</th>
-                    <th className="px-4 py-3 font-semibold">運費</th>
-                    <th className="px-4 py-3 font-semibold">貨到付款手續費</th>
+                    <th className="py-3 font-semibold">訂購金額</th>
+                    <th className="py-3 font-semibold">運費</th>
+                    <th className="py-3 font-semibold">貨到付款手續費</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shippingRows.map((row) => (
                     <tr key={row.amount} className="border-t border-zinc-100">
-                      <td className="px-4 py-3">{row.amount}</td>
-                      <td className="px-4 py-3">{row.shipping}</td>
-                      <td className="px-4 py-3">{row.codFee}</td>
+                      <td className="py-3">{row.amount}</td>
+                      <td className="py-3">{row.shipping}</td>
+                      <td className="py-3">{row.codFee}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -493,11 +495,17 @@ const AuthModal = ({
                   </div>
 
                   <Button
-                    type="submit"
+                    asChild
                     disabled={isLoginSubmitting}
-                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-all duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
                   >
-                    {isLoginSubmitting ? "登入中..." : "登入"}
+                    <motion.button
+                      type="submit"
+                      whileTap={isLoginSubmitting ? undefined : { scale: 0.985 }}
+                      transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+                    >
+                      {isLoginSubmitting ? "登入中..." : "登入"}
+                    </motion.button>
                   </Button>
 
                   <LineAuthButton mode={mode} />
@@ -586,11 +594,17 @@ const AuthModal = ({
                   </p>
 
                   <Button
-                    type="submit"
+                    asChild
                     disabled={isRegisterSubmitting}
-                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+                    className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-all duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
                   >
-                    {isRegisterSubmitting ? "建立中..." : "建立帳號"}
+                    <motion.button
+                      type="submit"
+                      whileTap={isRegisterSubmitting ? undefined : { scale: 0.985 }}
+                      transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+                    >
+                      {isRegisterSubmitting ? "建立中..." : "建立帳號"}
+                    </motion.button>
                   </Button>
 
                   <LineAuthButton mode={mode} />
@@ -697,7 +711,7 @@ export const Navbar = () => {
               />
             </div>
             <div className="cursor-pointer text-2xl font-black tracking-tighter">
-              Goose<span className="text-orange-500">.</span>
+              鵝作社<span className="text-orange-500">.</span>
             </div>
           </Link>
 
@@ -770,7 +784,7 @@ export const Navbar = () => {
                 <div className="flex gap-2">
                   <Button
                     variant="ghost"
-                    className="text-xs hover:text-orange-600"
+                    className="rounded-none border border-zinc-300 bg-white px-6 text-xs text-zinc-900 transition-all duration-200 hover:border-orange-300 hover:text-orange-600 active:scale-[0.98] active:border-orange-300 active:bg-orange-50 active:text-orange-600"
                     onClick={() => openAuth("login")}
                   >
                     登入
@@ -807,14 +821,14 @@ export const Navbar = () => {
 
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-[105] bg-black/40 md:hidden" onClick={closeAll}>
+          <>
+            <div className="fixed inset-0 z-[105] bg-black/40 md:hidden" onClick={closeAll} />
             <motion.aside
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               onClick={(event) => event.stopPropagation()}
-              className="ml-auto flex h-full w-[86vw] max-w-sm flex-col bg-white px-6 pb-8 pt-6 shadow-xl"
+              className="fixed right-0 top-0 z-[106] ml-auto flex h-full w-[86vw] max-w-sm flex-col bg-white px-6 pb-8 pt-6 shadow-xl md:hidden"
             >
               <div className="mb-8 flex items-center justify-between">
                 <div>
@@ -905,23 +919,37 @@ export const Navbar = () => {
                 ) : (
                   <>
                     <Button
+                      asChild
                       variant="ghost"
-                      className="w-full justify-center text-sm hover:text-orange-600"
-                      onClick={() => openAuth("login")}
+                      className="w-full rounded-full border border-zinc-300 bg-white py-6 text-sm text-zinc-900 transition-all duration-200 hover:border-orange-300 hover:text-orange-600"
                     >
-                      登入
+                      <motion.button
+                        type="button"
+                        onClick={() => openAuth("login")}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+                      >
+                        登入
+                      </motion.button>
                     </Button>
                     <Button
-                      className="w-full rounded-full bg-zinc-900 py-6 text-sm text-white hover:bg-zinc-800"
-                      onClick={() => openAuth("register")}
+                      asChild
+                      className="w-full rounded-full bg-zinc-900 py-6 text-sm text-white transition-all duration-200 hover:bg-zinc-800"
                     >
-                      註冊
+                      <motion.button
+                        type="button"
+                        onClick={() => openAuth("register")}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+                      >
+                        註冊
+                      </motion.button>
                     </Button>
                   </>
                 )}
               </div>
             </motion.aside>
-          </div>
+          </>
         )}
 
         {isNoticeOpen && <NoticeModal onClose={() => setIsNoticeOpen(false)} />}

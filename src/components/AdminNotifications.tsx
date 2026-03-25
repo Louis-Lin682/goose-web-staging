@@ -140,7 +140,7 @@ export const AdminNotifications = () => {
           <div className="grid grid-cols-3 gap-4 rounded-3xl bg-zinc-50 p-4">
             <div className="min-w-[96px] text-center">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                Total
+                總數
               </p>
               <p className="mt-2 text-2xl font-black text-zinc-900">
                 {notifications.length}
@@ -148,13 +148,13 @@ export const AdminNotifications = () => {
             </div>
             <div className="min-w-[96px] text-center">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                Unread
+                未讀
               </p>
               <p className="mt-2 text-2xl font-black text-zinc-900">{unreadCount}</p>
             </div>
             <div className="min-w-[96px] text-center">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                Processed
+                已處理
               </p>
               <p className="mt-2 text-2xl font-black text-zinc-900">{readCount}</p>
             </div>

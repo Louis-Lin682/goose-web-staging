@@ -77,7 +77,7 @@ export const GooseDetail = () => {
             <Link to="/" className="group flex items-center gap-2 text-sm font-bold tracking-widest uppercase text-zinc-400 hover:text-black transition-colors">
               <span className="group-hover:-translate-x-2 transition-transform">←</span> 返回首頁
             </Link>
-            <div className="text-[10px] text-zinc-300 font-mono">GOOSE CO. / 2026</div>
+            <div className="text-[10px] text-zinc-300 font-mono">GOOSE.FOOD CO. / 2026</div>
           </div>
         </div>
       </section>

@@ -5,6 +5,8 @@ import { useAuth } from "../context/useAuth";
 import { getOrderHistory } from "../lib/orders";
 import type { OrderHistoryEntry, OrderStatus } from "../types/order";
 
+const REFRESH_INTERVAL_MS = 30 * 1000;
+
 const formatCurrency = (value: number) => `$${value}`;
 
 const formatDate = (value: string) =>
@@ -116,6 +118,62 @@ export const Orders = () => {
 
     return () => {
       isMounted = false;
+    };
+  }, [isAuthReady, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthReady || !isAuthenticated) {
+      return;
+    }
+
+    let isMounted = true;
+    let intervalId: number | null = null;
+
+    const refreshOrders = async () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      try {
+        const response = await getOrderHistory();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setOrders(response.orders);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+      }
+    };
+
+    const startPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+
+      intervalId = window.setInterval(() => {
+        void refreshOrders();
+      }, REFRESH_INTERVAL_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshOrders();
+      }
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isAuthReady, isAuthenticated]);
 
