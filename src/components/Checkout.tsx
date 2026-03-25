@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState, type FormEvent } from "react";
+import { CircleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
@@ -21,6 +22,9 @@ type CheckoutFormState = {
   recipientPhone: string;
   recipientEmail: string;
   recipientAddress: string;
+  pickupStoreCode: string;
+  pickupStoreName: string;
+  pickupStoreAddress: string;
   note: string;
   deliveryMethod: OrderDeliveryMethod;
   paymentMethod: OrderPaymentMethod;
@@ -51,6 +55,10 @@ const variantLabels: Record<string, string> = {
 const formatCurrency = (value: number) => `$${value}`;
 
 const getShippingFee = (subtotal: number, deliveryMethod: OrderDeliveryMethod) => {
+  if (deliveryMethod === "pickup") {
+    return 0;
+  }
+
   if (subtotal <= 1000) {
     return 200;
   }
@@ -72,6 +80,10 @@ const getCodFee = (
   paymentMethod: OrderPaymentMethod,
 ) => {
   if (paymentMethod !== "cod") {
+    return 0;
+  }
+
+  if (deliveryMethod === "pickup") {
     return 0;
   }
 
@@ -100,6 +112,9 @@ const buildInitialForm = (
   recipientPhone: phone,
   recipientEmail: email,
   recipientAddress: address,
+  pickupStoreCode: "",
+  pickupStoreName: "",
+  pickupStoreAddress: "",
   note: "",
   deliveryMethod: "home",
   paymentMethod: "online",
@@ -243,6 +258,7 @@ export const Checkout = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
   const [form, setForm] = useState<CheckoutFormState>(() => buildInitialForm());
+  const isPickup = form.deliveryMethod === "pickup";
 
 
   const subtotal = useMemo(
@@ -260,6 +276,23 @@ export const Checkout = () => {
     setSubmitMessage(null);
     setSubmitError(null);
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleDeliveryMethodChange = (nextMethod: OrderDeliveryMethod) => {
+    setSubmitMessage(null);
+    setSubmitError(null);
+    setForm((prev) => ({
+      ...prev,
+      deliveryMethod: nextMethod,
+      ...(nextMethod === "pickup"
+        ? {
+            recipientAddress: "",
+            pickupStoreCode: "",
+            pickupStoreName: "",
+            pickupStoreAddress: "",
+          }
+        : {}),
+    }));
   };
 
 
@@ -450,7 +483,7 @@ export const Checkout = () => {
         <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
           <form
             onSubmit={handleSubmit}
-            className="space-y-6 rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm md:p-8"
+            className="flex flex-col gap-6 rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm md:p-8"
           >
             <div className="lg:hidden">
               <OrderSummary
@@ -464,7 +497,7 @@ export const Checkout = () => {
               />
             </div>
 
-            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+            <section className="order-3 rounded-[1.75rem] bg-zinc-50 p-5 lg:order-none">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
                   Contact
@@ -516,25 +549,44 @@ export const Checkout = () => {
               </div>
 
               <div className="mt-4">
-                <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                  {form.deliveryMethod === "pickup" ? "取件相關地址備註" : "收件地址"}
-                </label>
-                <input
-                  type="text"
-                  value={form.recipientAddress}
-                  onChange={(event) => handleFieldChange("recipientAddress", event.target.value)}
-                  required={form.deliveryMethod === "home"}
-                  placeholder={
-                    form.deliveryMethod === "pickup"
-                      ? "可填寫站所名稱或取件備註"
-                      : "請輸入完整收件地址"
-                  }
-                  className={inputClassName}
-                />
+                {!isPickup ? (
+                  <>
+                    <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                      收件地址
+                    </label>
+                    <input
+                      type="text"
+                      value={form.recipientAddress}
+                      onChange={(event) => handleFieldChange("recipientAddress", event.target.value)}
+                      required
+                      placeholder="請輸入完整收件地址"
+                      className={inputClassName}
+                    />
+                  </>
+                ) : (
+                  <div className="space-y-4 rounded-[1.5rem] border border-zinc-200 bg-white px-4 py-4">
+                    <div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">門市自取資訊</p>
+                        <div className="mt-1 space-y-2">
+                          <p className="text-xs leading-6 text-zinc-500">
+                            門市自取不需填寫收件地址。
+                            <br />
+                            店家會依據收件人姓名、電話與 Email 與你聯繫取件事宜。
+                          </p>
+                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500">
+                            <CircleAlert className="h-3.5 w-3.5" />
+                            請確認手機號碼是否填寫正確
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+            <section className="order-1 rounded-[1.75rem] bg-zinc-50 p-5 lg:order-none">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
                 Delivery
               </p>
@@ -543,7 +595,7 @@ export const Checkout = () => {
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => handleFieldChange("deliveryMethod", "home")}
+                  onClick={() => handleDeliveryMethodChange("home")}
                   className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
                     form.deliveryMethod === "home"
                       ? "border-zinc-900 bg-zinc-900 text-white"
@@ -556,32 +608,32 @@ export const Checkout = () => {
                       form.deliveryMethod === "home" ? "text-white/75" : "text-zinc-500"
                     }`}
                   >
-                    依訂單金額自動計算運費，線上付款與貨到付款皆可選擇。
+                    黑貓低溫宅配，依訂單金額自動計算運費，線上付款與貨到付款皆可選擇。
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => handleFieldChange("deliveryMethod", "pickup")}
+                  onClick={() => handleDeliveryMethodChange("pickup")}
                   className={`rounded-3xl border px-5 py-5 text-left transition-colors ${
                     form.deliveryMethod === "pickup"
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 bg-white text-zinc-900 hover:border-orange-300"
                   }`}
                 >
-                  <p className="text-sm font-bold">黑貓店取</p>
+                  <p className="text-sm font-bold">門市自取</p>
                   <p
                     className={`mt-2 text-xs leading-6 ${
                       form.deliveryMethod === "pickup" ? "text-white/75" : "text-zinc-500"
                     }`}
                   >
-                    到站後由黑貓通知取件，不需在家等待，運費與手續費同樣依訂單金額計算。
+                    可先與店家確認到店時間，門市自取不另外收取運費與貨到付款手續費。
                   </p>
                 </button>
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+            <section className="order-2 rounded-[1.75rem] bg-zinc-50 p-5 lg:order-none">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
                 Payment
               </p>
@@ -603,7 +655,7 @@ export const Checkout = () => {
                       form.paymentMethod === "online" ? "text-white/75" : "text-zinc-500"
                     }`}
                   >
-                    送出訂單後會直接前往綠界 sandbox 測試付款頁。
+                    送出訂單後會直接前往綠界 sandbox 付款頁。
                   </p>
                 </button>
 
@@ -622,13 +674,13 @@ export const Checkout = () => {
                       form.paymentMethod === "cod" ? "text-white/75" : "text-zinc-500"
                     }`}
                   >
-                    系統會依商品金額計算手續費，店取時不收取貨到付款費用。
+                    系統會依商品金額計算手續費。
                   </p>
                 </button>
               </div>
             </section>
 
-            <section className="rounded-[1.75rem] bg-zinc-50 p-5">
+            <section className="order-4 rounded-[1.75rem] bg-zinc-50 p-5 lg:order-none">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-600">
                 Notes
               </p>
@@ -656,7 +708,7 @@ export const Checkout = () => {
               </div>
             )}
 
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+            <div className="order-5 flex flex-col gap-3 pt-2 sm:flex-row lg:order-none">
               <Button
                 type="submit"
                 disabled={isSubmitting}
@@ -693,4 +745,9 @@ export const Checkout = () => {
     </main>
   );
 };
+
+
+
+
+
 

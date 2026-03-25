@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { AdminActionLoadingOverlay } from "./AdminActionLoadingOverlay";
 import { useAuth } from "../context/useAuth";
@@ -84,7 +84,9 @@ const datePresetLabels: Record<Exclude<OrderDatePreset, "custom">, string> = {
 
 const deliveryLabels: Record<string, string> = {
   home: "宅配到府",
-  pickup: "黑貓店取",
+  pickup: "門市自取",
+  familymart: "全家取貨（舊資料）",
+  seven_eleven: "7-11 取貨（舊資料）",
 };
 
 const paymentLabels: Record<string, string> = {
@@ -94,8 +96,8 @@ const paymentLabels: Record<string, string> = {
 
 const variantLabels: Record<string, string> = {
   single: "單一規格",
-  small: "小份",
-  large: "大份",
+  small: "小",
+  large: "大",
 };
 
 const orderStatusBadgeStyles: Record<OrderStatus, string> = {
@@ -170,7 +172,7 @@ export const AdminOrders = () => {
         setError(
           fetchError instanceof Error
             ? fetchError.message
-            : "載入訂單資料失敗，請稍後再試。",
+            : "訂單資料載入失敗，請稍後再試一次。",
         );
       } finally {
         if (isMounted) setIsLoading(false);
@@ -275,7 +277,7 @@ export const AdminOrders = () => {
       setError(
         updateError instanceof Error
           ? updateError.message
-          : "更新訂單狀態失敗，請稍後再試。",
+          : "更新訂單狀態失敗，請稍後再試一次。",
       );
     } finally {
       setUpdatingOrderId(null);
@@ -347,7 +349,7 @@ export const AdminOrders = () => {
     return (
       <main className="min-h-screen bg-white px-6 pb-24 pt-40">
         <div className="mx-auto max-w-6xl rounded-[2rem] border border-zinc-100 bg-zinc-50 px-8 py-16 text-center">
-          <p className="text-sm text-zinc-500">正在驗證登入狀態...</p>
+          <p className="text-sm text-zinc-500">正在確認登入狀態...</p>
         </div>
       </main>
     );
@@ -364,7 +366,7 @@ export const AdminOrders = () => {
             請先登入管理員帳號
           </h1>
           <p className="mt-3 text-sm leading-6 text-zinc-500">
-            登入後即可查看訂單管理、調整訂單狀態與追蹤最新進度。
+            登入後即可查看訂單、付款狀態與出貨進度，並直接更新訂單處理狀態。
           </p>
         </div>
       </main>
@@ -379,10 +381,10 @@ export const AdminOrders = () => {
             Admin
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 md:text-5xl">
-            這個頁面僅限管理員
+            你目前不是管理員
           </h1>
           <p className="mt-3 text-sm leading-6 text-zinc-500">
-            目前登入帳號沒有管理權限，請切換管理員帳號後再查看。
+            只有具備管理員權限的帳號可以查看後台訂單管理頁面。
           </p>
         </div>
       </main>
@@ -405,7 +407,7 @@ export const AdminOrders = () => {
                 訂單管理
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-                快速查看目前訂單狀態、付款情況與收件資訊，方便即時處理出貨流程。
+                快速查看訂單進度、付款狀態與商品明細，並直接調整處理狀態。
               </p>
             </div>
 
@@ -524,13 +526,13 @@ export const AdminOrders = () => {
         <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
           {isLoading ? (
             <div className="rounded-[2rem] border border-zinc-100 bg-zinc-50 px-8 py-16 text-center text-sm text-zinc-500">
-              正在載入訂單資料...
+              訂單資料載入中...
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="rounded-[2rem] border border-dashed border-zinc-200 bg-zinc-50 px-8 py-16 text-center">
               <p className="text-2xl font-bold text-zinc-900">目前沒有符合條件的訂單</p>
               <p className="mt-3 text-sm text-zinc-500">
-                可以先調整日期、狀態或訂單編號關鍵字，再重新查看結果。
+                可以調整日期、狀態或訂單編號篩選條件，再重新查看訂單列表。
               </p>
             </div>
           ) : (
@@ -677,7 +679,7 @@ export const AdminOrders = () => {
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/45">
-                                    電話
+                                    聯絡電話
                                   </p>
                                   <p className="mt-2 font-semibold text-white">
                                     {order.recipientPhone}
@@ -699,6 +701,21 @@ export const AdminOrders = () => {
                                     <p className="mt-2 break-words font-semibold text-white">
                                       {order.recipientAddress}
                                     </p>
+                                  </div>
+                                )}
+                                {order.pickupStoreCode && (
+                                  <div className="sm:col-span-2 lg:col-span-1">
+                                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/45">
+                                      取貨門市
+                                    </p>
+                                    <p className="mt-2 font-semibold text-white">
+                                      {order.pickupStoreName || "未填寫"}（{order.pickupStoreCode}）
+                                    </p>
+                                    {order.pickupStoreAddress && (
+                                      <p className="mt-2 break-words text-white/75">
+                                        {order.pickupStoreAddress}
+                                      </p>
+                                    )}
                                   </div>
                                 )}
                                 {order.paidAt && (
@@ -727,7 +744,7 @@ export const AdminOrders = () => {
                                   <span>{formatCurrency(order.codFee)}</span>
                                 </div>
                                 <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">
-                                  <span>應付總額</span>
+                                  <span>訂單總額</span>
                                   <span>{formatCurrency(order.totalAmount)}</span>
                                 </div>
                               </div>
@@ -750,10 +767,13 @@ export const AdminOrders = () => {
 
           <div className="mt-8 rounded-[1.5rem] border border-zinc-100 bg-zinc-50 px-5 py-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-900">{filteredOrders.length}</span>{" "}
-            筆符合目前篩選條件的訂單
+            筆符合條件的訂單
           </div>
         </div>
       </div>
     </main>
   );
 };
+
+
+

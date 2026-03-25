@@ -21,11 +21,11 @@ const getProductDescription = (item: MenuItem) => {
 
 const getMobilePriceLabel = (item: MenuItem) => {
   if (typeof item.priceSmall === "number" && typeof item.priceLarge === "number") {
-    return `撠?$${item.priceSmall} / 憭?$${item.priceLarge}`;
+    return `小份$${item.priceSmall} / 大份$${item.priceLarge}`;
   }
 
   if (typeof item.priceSmall === "number") {
-    return `撠?$${item.priceSmall}`;
+    return `小份$${item.priceSmall}`;
   }
 
   return `$${item.price ?? 0}`;

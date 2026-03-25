@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
+import { AdminLogin } from "./components/AdminLogin";
+import { AdminRouteGuard } from "./components/AdminRouteGuard";
 import { AboutPreview } from "./components/AboutPreview";
 import { AdminMembers } from "./components/AdminMembers";
 import { AdminNotifications } from "./components/AdminNotifications";
@@ -51,12 +53,16 @@ function App() {
           <Route path="/checkout" element={<Checkout />} />
         </Route>
 
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route path="notifications" element={<AdminNotifications />} />
-          <Route path="orders" element={<AdminOrders />} />
-          <Route path="stats" element={<AdminProductStats />} />
-          <Route path="members" element={<AdminMembers />} />
-          <Route path="products" element={<AdminProducts />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+
+        <Route element={<AdminRouteGuard />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="stats" element={<AdminProductStats />} />
+            <Route path="members" element={<AdminMembers />} />
+            <Route path="products" element={<AdminProducts />} />
+          </Route>
         </Route>
       </Routes>
     </Router>

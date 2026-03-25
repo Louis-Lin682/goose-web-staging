@@ -35,7 +35,9 @@ const paymentStatusLabels: Record<"UNPAID" | "PAID" | "FAILED", string> = {
 
 const deliveryLabels: Record<string, string> = {
   home: "宅配到府",
-  pickup: "黑貓店取",
+  pickup: "門市自取",
+  familymart: "全家取貨（舊資料）",
+  seven_eleven: "7-11 取貨（舊資料）",
 };
 
 const paymentLabels: Record<string, string> = {
@@ -447,6 +449,21 @@ export const Orders = () => {
                                   <p className="mt-2 break-words font-semibold text-white">
                                     {order.recipientAddress}
                                   </p>
+                                </div>
+                              )}
+                              {order.pickupStoreCode && (
+                                <div className="sm:col-span-2 lg:col-span-1">
+                                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/45">
+                                    取貨門市
+                                  </p>
+                                  <p className="mt-2 font-semibold text-white">
+                                    {order.pickupStoreName || "未填寫"}（{order.pickupStoreCode}）
+                                  </p>
+                                  {order.pickupStoreAddress && (
+                                    <p className="mt-2 break-words text-white/75">
+                                      {order.pickupStoreAddress}
+                                    </p>
+                                  )}
                                 </div>
                               )}
                               {order.paidAt && (

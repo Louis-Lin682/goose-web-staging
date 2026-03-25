@@ -16,6 +16,9 @@ export type CreateOrderPayload = {
   recipientPhone: string;
   recipientEmail: string;
   recipientAddress?: string;
+  pickupStoreCode?: string;
+  pickupStoreName?: string;
+  pickupStoreAddress?: string;
   note?: string;
   deliveryMethod: OrderDeliveryMethod;
   paymentMethod: OrderPaymentMethod;
@@ -74,6 +77,9 @@ export type OrderHistoryEntry = {
   recipientPhone: string;
   recipientEmail: string;
   recipientAddress: string | null;
+  pickupStoreCode: string | null;
+  pickupStoreName: string | null;
+  pickupStoreAddress: string | null;
   note: string | null;
   subtotal: number;
   shippingFee: number;
