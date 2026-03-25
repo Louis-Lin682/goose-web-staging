@@ -51,10 +51,6 @@ const variantLabels: Record<string, string> = {
 const formatCurrency = (value: number) => `$${value}`;
 
 const getShippingFee = (subtotal: number, deliveryMethod: OrderDeliveryMethod) => {
-  if (deliveryMethod === "pickup") {
-    return 0;
-  }
-
   if (subtotal <= 1000) {
     return 200;
   }
@@ -75,7 +71,7 @@ const getCodFee = (
   deliveryMethod: OrderDeliveryMethod,
   paymentMethod: OrderPaymentMethod,
 ) => {
-  if (deliveryMethod === "pickup" || paymentMethod !== "cod") {
+  if (paymentMethod !== "cod") {
     return 0;
   }
 
@@ -231,11 +227,9 @@ const OrderSummary = ({
       </div>
 
       <div className="mt-8 rounded-[1.75rem] bg-white/5 px-4 py-4 text-sm leading-7 text-white/70">
-        {deliveryMethod === "pickup"
-          ? "目前選擇黑貓店取，運費與貨到付款手續費皆為 0 元。"
-          : paymentMethod === "cod"
-            ? "目前選擇貨到付款，系統會依訂單金額自動計算手續費。"
-            : "目前選擇宅配到府與線上付款，送出後會前往綠界付款頁。"}
+        {paymentMethod === "cod"
+          ? "目前選擇貨到付款，系統會依訂單金額自動計算手續費。"
+          : "送出訂單後會依目前配送與付款方式計算應付金額；若為線上付款，會接著前往綠界付款頁。"}
       </div>
     </section>
   );
@@ -581,7 +575,7 @@ export const Checkout = () => {
                       form.deliveryMethod === "pickup" ? "text-white/75" : "text-zinc-500"
                     }`}
                   >
-                    到站後由黑貓通知取件，不需在家等待，運費與手續費皆為 0 元。
+                    到站後由黑貓通知取件，不需在家等待，運費與手續費同樣依訂單金額計算。
                   </p>
                 </button>
               </div>

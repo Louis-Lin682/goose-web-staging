@@ -157,7 +157,7 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => (
             </div>
 
             <div className="overflow-hidden rounded-3xl border border-zinc-200">
-              <table className="w-full border-collapse text-left text-sm">
+              <table className="w-full border-collapse text-center text-sm">
                 <thead className="bg-zinc-50 text-zinc-900">
                   <tr>
                     <th className="py-3 font-semibold">訂購金額</th>
