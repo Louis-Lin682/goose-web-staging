@@ -1,8 +1,42 @@
-const API_BASE_URL = (
-  import.meta.env.PROD ? "/api" : import.meta.env.VITE_API_BASE_URL ?? ""
-)
-  .trim()
-  .replace(/\/$/, "");
+const LOCAL_API_BASE_URL = "http://localhost:3001";
+const STAGING_API_BASE_URL = "https://goose-api-staging.onrender.com";
+const PRODUCTION_API_BASE_URL = "https://api.gozoshe.com";
+
+const resolveApiBaseUrl = () => {
+  const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
+
+  if (typeof window === "undefined") {
+    return configuredBaseUrl;
+  }
+
+  const { hostname } = window.location;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return configuredBaseUrl || LOCAL_API_BASE_URL;
+  }
+
+  if (
+    hostname === "www.gozoshe.com" ||
+    hostname === "gozoshe.com" ||
+    hostname === "api.gozoshe.com"
+  ) {
+    return PRODUCTION_API_BASE_URL;
+  }
+
+  if (
+    hostname === "gozoshe-staging.vercel.app" ||
+    hostname === "goose-web-seven.vercel.app" ||
+    hostname.includes("staging")
+  ) {
+    return STAGING_API_BASE_URL;
+  }
+
+  return configuredBaseUrl || STAGING_API_BASE_URL;
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 const buildUrl = (path: string) => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { API_BASE_URL, apiRequest } from "./api";
 import type {
   CurrentUserResponse,
   ForgotPasswordPayload,
@@ -62,11 +62,5 @@ export const getLineAuthStartUrl = (
   mode: "login" | "register" = "login",
 ): string => {
   const encodedMode = encodeURIComponent(mode);
-
-  if (import.meta.env.PROD) {
-    return `/api/auth/line/start?mode=${encodedMode}`;
-  }
-
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
-  return `${baseUrl}/auth/line/start?mode=${encodedMode}`;
+  return `${API_BASE_URL}/auth/line/start?mode=${encodedMode}`;
 };
