@@ -69,6 +69,10 @@ export const AdminProducts = () => {
   const [pendingDeleteCategory, setPendingDeleteCategory] =
     useState<ProductGroup | null>(null);
   const [pendingDeleteProduct, setPendingDeleteProduct] = useState<MenuItem | null>(null);
+  const createModalOverlayPressStartedRef = useRef(false);
+  const deleteProductOverlayPressStartedRef = useRef(false);
+  const deleteCategoryOverlayPressStartedRef = useRef(false);
+  const errorDialogOverlayPressStartedRef = useRef(false);
   const [draftCategory, setDraftCategory] = useState("");
   const [draftCategoryOrder, setDraftCategoryOrder] = useState("");
   const [drafts, setDrafts] = useState<ProductDraft[]>([createEmptyDraft()]);
@@ -918,8 +922,16 @@ export const AdminProducts = () => {
       {isCreateModalOpen && (
         <div
           className="fixed inset-0 z-[120] bg-black/50 px-6 py-8"
+          onMouseDown={(event) => {
+            createModalOverlayPressStartedRef.current = event.target === event.currentTarget;
+          }}
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
+            const shouldClose =
+              createModalOverlayPressStartedRef.current &&
+              event.target === event.currentTarget;
+            createModalOverlayPressStartedRef.current = false;
+
+            if (shouldClose) {
               setIsCreateModalOpen(false);
             }
           }}
@@ -1165,7 +1177,23 @@ export const AdminProducts = () => {
       )}
 
       {pendingDeleteProduct && (
-        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-6">
+        <div
+          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-6"
+          onMouseDown={(event) => {
+            deleteProductOverlayPressStartedRef.current =
+              event.target === event.currentTarget;
+          }}
+          onClick={(event) => {
+            const shouldClose =
+              deleteProductOverlayPressStartedRef.current &&
+              event.target === event.currentTarget;
+            deleteProductOverlayPressStartedRef.current = false;
+
+            if (shouldClose) {
+              setPendingDeleteProduct(null);
+            }
+          }}
+        >
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-600">
               商品
@@ -1198,7 +1226,23 @@ export const AdminProducts = () => {
       )}
 
       {pendingDeleteCategory && (
-        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-6">
+        <div
+          className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-6"
+          onMouseDown={(event) => {
+            deleteCategoryOverlayPressStartedRef.current =
+              event.target === event.currentTarget;
+          }}
+          onClick={(event) => {
+            const shouldClose =
+              deleteCategoryOverlayPressStartedRef.current &&
+              event.target === event.currentTarget;
+            deleteCategoryOverlayPressStartedRef.current = false;
+
+            if (shouldClose) {
+              setPendingDeleteCategory(null);
+            }
+          }}
+        >
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-600">
               分類
@@ -1234,7 +1278,22 @@ export const AdminProducts = () => {
       )}
 
       {createErrorDialog && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/30 px-6">
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-black/30 px-6"
+          onMouseDown={(event) => {
+            errorDialogOverlayPressStartedRef.current = event.target === event.currentTarget;
+          }}
+          onClick={(event) => {
+            const shouldClose =
+              errorDialogOverlayPressStartedRef.current &&
+              event.target === event.currentTarget;
+            errorDialogOverlayPressStartedRef.current = false;
+
+            if (shouldClose) {
+              setCreateErrorDialog(null);
+            }
+          }}
+        >
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-600">
               提示
