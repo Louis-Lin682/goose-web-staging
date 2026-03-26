@@ -7,6 +7,7 @@ import { SESSION_TIMEOUT_EVENT } from "../lib/session-timeout";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 15 * 1000;
 const SESSION_KEEPALIVE_MS = 5 * 60 * 1000;
+const IDLE_CHECK_INTERVAL_MS = 30 * 1000;
 const ACTIVITY_STORAGE_KEY = "goose_last_activity_at";
 
 const readLastActivity = () => {
@@ -44,6 +45,7 @@ export const SessionTimeoutManager = () => {
   const { isAuthReady, isAuthenticated, signOut } = useAuth();
   const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const lastPersistedRef = useRef(0);
   const lastKeepAliveRef = useRef(0);
   const isHandlingTimeoutRef = useRef(false);
@@ -57,6 +59,11 @@ export const SessionTimeoutManager = () => {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
 
     if (!isAuthReady) {
@@ -84,6 +91,11 @@ export const SessionTimeoutManager = () => {
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
+      }
+
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
 
@@ -146,6 +158,11 @@ export const SessionTimeoutManager = () => {
           window.clearTimeout(timerRef.current);
           timerRef.current = null;
         }
+
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
       }
     };
 
@@ -167,6 +184,18 @@ export const SessionTimeoutManager = () => {
       }, remaining);
     };
 
+    const checkIdleState = () => {
+      const lastActivity = readLastActivity();
+
+      if (!lastActivity) {
+        return;
+      }
+
+      if (Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+        void handleIdleTimeout();
+      }
+    };
+
     const markActivity = () => {
       if (isHandlingTimeoutRef.current) {
         return;
@@ -178,18 +207,20 @@ export const SessionTimeoutManager = () => {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const lastActivity = readLastActivity();
-
-        if (lastActivity && Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
-          void handleIdleTimeout();
-          return;
-        }
-
-        persistActivity(true);
-        scheduleTimeout();
-        void keepSessionAlive(true);
+      if (document.visibilityState !== "visible") {
+        return;
       }
+
+      const lastActivity = readLastActivity();
+
+      if (lastActivity && Date.now() - lastActivity >= IDLE_TIMEOUT_MS) {
+        void handleIdleTimeout();
+        return;
+      }
+
+      persistActivity(true);
+      scheduleTimeout();
+      void keepSessionAlive(true);
     };
 
     const handleStorage = (event: StorageEvent) => {
@@ -205,14 +236,13 @@ export const SessionTimeoutManager = () => {
     persistActivity(true);
     void keepSessionAlive(true);
     scheduleTimeout();
+    intervalRef.current = window.setInterval(checkIdleState, IDLE_CHECK_INTERVAL_MS);
 
     const activityEvents: Array<keyof WindowEventMap> = [
-      "mousedown",
-      "mousemove",
+      "pointerdown",
       "keydown",
       "scroll",
       "touchstart",
-      "click",
     ];
 
     activityEvents.forEach((eventName) => {
@@ -226,6 +256,11 @@ export const SessionTimeoutManager = () => {
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
+      }
+
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
 
       activityEvents.forEach((eventName) => {
@@ -249,10 +284,11 @@ export const SessionTimeoutManager = () => {
             Session
           </p>
           <h2 className="mt-3 text-2xl font-black text-zinc-900">
-            閒置太久，已自動登出
+            閒置過久，已自動登出
           </h2>
           <p className="mt-4 text-sm leading-7 text-zinc-600">
-            你已超過 30 分鐘沒有操作，系統已為了安全自動登出。按下確認後會返回首頁。
+            已超過 30 分鐘沒有操作，系統已為了安全性自動登出。
+            請重新登入後再繼續使用。
           </p>
           <button
             type="button"
@@ -263,7 +299,7 @@ export const SessionTimeoutManager = () => {
             }}
             className="mt-6 h-12 w-full rounded-full bg-zinc-900 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
           >
-            確認
+            返回首頁
           </button>
         </div>
       </div>
