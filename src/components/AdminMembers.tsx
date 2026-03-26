@@ -78,6 +78,8 @@ export const AdminMembers = () => {
   const [editingMember, setEditingMember] = useState<AdminUserEntry | null>(null);
   const [editForm, setEditForm] = useState<EditFormState | null>(null);
   const [deletingMember, setDeletingMember] = useState<AdminUserEntry | null>(null);
+  const [editOverlayPressStarted, setEditOverlayPressStarted] = useState(false);
+  const [deleteOverlayPressStarted, setDeleteOverlayPressStarted] = useState(false);
 
   useEffect(() => {
     if (!isAuthReady) {
@@ -492,8 +494,15 @@ export const AdminMembers = () => {
       {editingMember && editForm && (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-6 py-8"
+          onMouseDown={(event) => {
+            setEditOverlayPressStarted(event.target === event.currentTarget);
+          }}
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
+            const shouldClose =
+              editOverlayPressStarted && event.target === event.currentTarget;
+            setEditOverlayPressStarted(false);
+
+            if (shouldClose) {
               setEditingMember(null);
               setEditForm(null);
             }
@@ -571,8 +580,15 @@ export const AdminMembers = () => {
       {deletingMember && (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-6 py-8"
+          onMouseDown={(event) => {
+            setDeleteOverlayPressStarted(event.target === event.currentTarget);
+          }}
           onClick={(event) => {
-            if (event.target === event.currentTarget) {
+            const shouldClose =
+              deleteOverlayPressStarted && event.target === event.currentTarget;
+            setDeleteOverlayPressStarted(false);
+
+            if (shouldClose) {
               setDeletingMember(null);
             }
           }}

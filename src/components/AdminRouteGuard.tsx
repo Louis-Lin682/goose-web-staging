@@ -13,7 +13,7 @@ export const AdminRouteGuard = () => {
             Admin
           </p>
           <p className="mt-3 text-sm font-semibold text-zinc-600">
-            正在驗證管理員登入狀態...
+            正在檢查後台登入狀態...
           </p>
         </div>
       </div>

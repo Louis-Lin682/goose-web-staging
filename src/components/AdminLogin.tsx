@@ -65,7 +65,7 @@ export const AdminLogin = () => {
         signOut();
         setFeedback({
           type: "error",
-          message: "這個帳號不是管理員，無法登入後台。",
+          message: "管理員請改由後台登入頁登入。",
         });
         return;
       }
@@ -79,8 +79,7 @@ export const AdminLogin = () => {
     } catch (error) {
       setFeedback({
         type: "error",
-        message:
-          error instanceof Error ? error.message : "管理員登入失敗，請稍後再試。",
+        message: error instanceof Error ? error.message : "後台登入失敗，請稍後再試。",
       });
     } finally {
       setIsSubmitting(false);
@@ -96,19 +95,20 @@ export const AdminLogin = () => {
               Goose Admin
             </p>
             <h1 className="mt-5 text-4xl font-black tracking-tight md:text-5xl">
-              後台管理系統
+              後台登入入口
             </h1>
             <p className="mt-5 max-w-md text-sm leading-7 text-zinc-300">
-              管理訂單、會員、商品與通知都從這裡進入。後台登入入口獨立於前台會員登入，避免一般客人誤入管理流程。
+              這裡是管理員專用登入頁。登入後即可查看通知、處理訂單、調整商品與會員資料，
+              不需再從前台會員彈窗進入後台。
             </p>
 
             <div className="mt-10 space-y-4">
               <div className="flex items-start gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
                 <ShieldCheck className="mt-0.5 h-5 w-5 text-orange-400" />
                 <div>
-                  <p className="text-sm font-semibold text-white">獨立管理入口</p>
+                  <p className="text-sm font-semibold text-white">管理權限分流更清楚</p>
                   <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    後台使用專用登入頁，不再從前台會員彈窗進入管理系統。
+                    一般會員從前台登入，管理員則從獨立後台入口登入，權限與操作情境會更直覺。
                   </p>
                 </div>
               </div>
@@ -116,9 +116,9 @@ export const AdminLogin = () => {
               <div className="flex items-start gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-4">
                 <LockKeyhole className="mt-0.5 h-5 w-5 text-orange-400" />
                 <div>
-                  <p className="text-sm font-semibold text-white">管理員權限驗證</p>
+                  <p className="text-sm font-semibold text-white">登入流程更聚焦</p>
                   <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    只有管理員帳號可以進入 `/admin/*`，一般會員就算登入也會被擋下。
+                    使用管理員帳號即可直接進入後台，不再混用前台登入流程，整體也更接近正式站。
                   </p>
                 </div>
               </div>
@@ -141,13 +141,13 @@ export const AdminLogin = () => {
               管理員登入
             </h2>
             <p className="mt-4 text-sm leading-7 text-zinc-600">
-              請使用管理員帳號登入後台。若你只是一般會員，請回前台使用會員登入即可。
+              請輸入管理員電話、Email 或帳號與密碼。成功登入後會直接進入後台通知頁。
             </p>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                  手機、Email 或帳號
+                  電話、Email 或帳號
                 </label>
                 <input
                   type="text"
@@ -156,7 +156,7 @@ export const AdminLogin = () => {
                     setForm((prev) => ({ ...prev, identifier: event.target.value }))
                   }
                   required
-                  placeholder="請輸入管理員帳號"
+                  placeholder="請輸入管理員電話或 Email"
                   className={inputClassName}
                 />
               </div>
