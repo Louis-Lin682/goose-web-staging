@@ -39,6 +39,14 @@ type OrderSummaryProps = {
   paymentMethod: OrderPaymentMethod;
 };
 
+type CheckoutField =
+  | "recipientName"
+  | "recipientPhone"
+  | "recipientEmail"
+  | "recipientAddress";
+
+type CheckoutFieldErrors = Partial<Record<CheckoutField, string>>;
+
 const inputClassName =
   "h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400";
 
@@ -136,6 +144,31 @@ const resolveCheckoutErrorMessage = (error: unknown) => {
   }
 
   return message || "送出失敗，請稍後再試一次。";
+};
+
+const resolveCheckoutFieldErrors = (
+  message: string,
+  deliveryMethod: OrderDeliveryMethod,
+): CheckoutFieldErrors => {
+  const fieldErrors: CheckoutFieldErrors = {};
+
+  if (message.includes("姓名")) {
+    fieldErrors.recipientName = message;
+  }
+
+  if (message.includes("手機") || message.includes("電話")) {
+    fieldErrors.recipientPhone = message;
+  }
+
+  if (message.toLowerCase().includes("email")) {
+    fieldErrors.recipientEmail = message;
+  }
+
+  if (deliveryMethod === "home" && message.includes("地址")) {
+    fieldErrors.recipientAddress = message;
+  }
+
+  return fieldErrors;
 };
 
 const submitEcpayCheckout = (action: string, fields: Record<string, string>) => {
@@ -253,6 +286,7 @@ export const Checkout = () => {
   const { isAuthenticated, isAuthReady } = useAuth();
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
   const [form, setForm] = useState<CheckoutFormState>(() => buildInitialForm());
@@ -273,12 +307,14 @@ export const Checkout = () => {
   ) => {
     setSubmitMessage(null);
     setSubmitError(null);
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleDeliveryMethodChange = (nextMethod: OrderDeliveryMethod) => {
     setSubmitMessage(null);
     setSubmitError(null);
+    setFieldErrors({});
     setForm((prev) => ({
       ...prev,
       deliveryMethod: nextMethod,
@@ -322,6 +358,7 @@ export const Checkout = () => {
     setIsSubmitting(true);
     setSubmitMessage(null);
     setSubmitError(null);
+    setFieldErrors({});
 
     try {
       const response = await createOrder(payload);
@@ -342,7 +379,11 @@ export const Checkout = () => {
       setCompletedOrderNumber(response.orderNumber);
       setSubmitMessage("訂單建立成功，我們會儘快為你安排後續處理。");
     } catch (error) {
-      setSubmitError(resolveCheckoutErrorMessage(error));
+      const message = resolveCheckoutErrorMessage(error);
+      const nextFieldErrors = resolveCheckoutFieldErrors(message, form.deliveryMethod);
+
+      setFieldErrors(nextFieldErrors);
+      setSubmitError(Object.keys(nextFieldErrors).length === 0 ? message : null);
     } finally {
       setIsSubmitting(false);
     }
@@ -515,6 +556,11 @@ export const Checkout = () => {
                     placeholder="請輸入收件人姓名"
                     className={inputClassName}
                   />
+                  {fieldErrors.recipientName && (
+                    <p className="mt-2 text-xs font-medium text-red-600">
+                      {fieldErrors.recipientName}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-zinc-900">
@@ -528,6 +574,11 @@ export const Checkout = () => {
                     placeholder="09xxxxxxxx"
                     className={inputClassName}
                   />
+                  {fieldErrors.recipientPhone && (
+                    <p className="mt-2 text-xs font-medium text-red-600">
+                      {fieldErrors.recipientPhone}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -543,6 +594,11 @@ export const Checkout = () => {
                   placeholder="you@example.com"
                   className={inputClassName}
                 />
+                {fieldErrors.recipientEmail && (
+                  <p className="mt-2 text-xs font-medium text-red-600">
+                    {fieldErrors.recipientEmail}
+                  </p>
+                )}
               </div>
 
               <div className="mt-4">
@@ -559,6 +615,11 @@ export const Checkout = () => {
                       placeholder="請輸入完整收件地址"
                       className={inputClassName}
                     />
+                    {fieldErrors.recipientAddress && (
+                      <p className="mt-2 text-xs font-medium text-red-600">
+                        {fieldErrors.recipientAddress}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <div className="space-y-4 rounded-[1.5rem] border border-zinc-200 bg-white px-4 py-4">

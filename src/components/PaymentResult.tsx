@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/useCart";
-import {
-  clearPendingPayment,
-  getPendingPayment,
-  simulateEcpayPaid,
-} from "../lib/orders";
 
 type PaymentResultState = "success" | "failed";
 
@@ -35,11 +30,8 @@ const clearStoredCarts = () => {
   });
 };
 
-const getResultState = (
-  rtnCode: string | null,
-  simulatedOrderNumber: string | null,
-): PaymentResultState => {
-  if (rtnCode === "1" || Boolean(simulatedOrderNumber)) {
+const getResultState = (rtnCode: string | null): PaymentResultState => {
+  if (rtnCode === "1") {
     return "success";
   }
 
@@ -49,13 +41,9 @@ const getResultState = (
 const getHeading = (state: PaymentResultState) =>
   state === "success" ? "付款完成" : "付款失敗";
 
-const getMessage = (state: PaymentResultState, hasPendingPayment: boolean) => {
+const getMessage = (state: PaymentResultState) => {
   if (state === "success") {
     return "付款已完成，訂單已送出並進入待確認狀態。";
-  }
-
-  if (hasPendingPayment) {
-    return "本次交易未完成，若仍想購買，請重新建立一筆新的交易。";
   }
 
   return "本次付款未成功，若仍想購買，請重新建立一筆新的交易。";
@@ -75,14 +63,7 @@ const getAccentClasses = (state: PaymentResultState) =>
 export const PaymentResult = () => {
   const [searchParams] = useSearchParams();
   const { clearCart } = useCart();
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulateError, setSimulateError] = useState<string | null>(null);
-  const [simulatedOrderNumber, setSimulatedOrderNumber] = useState<string | null>(null);
-  const hasAutoTriggeredRef = useRef(false);
-  const hasHandledSuccessRef = useRef(false);
-
-  const pendingPayment = useMemo(() => getPendingPayment(), []);
-  const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams]);
+  const [hasHandledSuccess, setHasHandledSuccess] = useState(false);
 
   const result = useMemo(() => {
     const rtnCode = searchParams.get("RtnCode");
@@ -90,13 +71,9 @@ export const PaymentResult = () => {
     const tradeNo = searchParams.get("TradeNo");
     const merchantTradeNo = searchParams.get("MerchantTradeNo");
     const orderNumber =
-      simulatedOrderNumber ??
-      searchParams.get("CustomField2") ??
-      merchantTradeNo ??
-      pendingPayment?.orderNumber ??
-      null;
+      searchParams.get("CustomField2") ?? merchantTradeNo ?? null;
     const paymentType = searchParams.get("PaymentType");
-    const state = getResultState(rtnCode, simulatedOrderNumber);
+    const state = getResultState(rtnCode);
 
     return {
       state,
@@ -107,59 +84,17 @@ export const PaymentResult = () => {
       paymentType,
       isSuccess: state === "success",
     };
-  }, [pendingPayment?.orderNumber, searchParams, simulatedOrderNumber]);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (result.isSuccess && !hasHandledSuccessRef.current) {
-      hasHandledSuccessRef.current = true;
-      clearPendingPayment();
-      clearStoredCarts();
-      clearCart();
-    }
-  }, [clearCart, result.isSuccess]);
-
-  const handleSimulatePaid = async () => {
-    if (!pendingPayment?.orderId) {
+    if (!result.isSuccess || hasHandledSuccess) {
       return;
     }
 
-    setIsSimulating(true);
-    setSimulateError(null);
-
-    try {
-      const response = await simulateEcpayPaid(pendingPayment.orderId);
-      setSimulatedOrderNumber(response.orderNumber);
-    } catch (error) {
-      setSimulateError(
-        error instanceof Error ? error.message : "模擬付款失敗，請稍後再試一次。",
-      );
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    if (hasAutoTriggeredRef.current) {
-      return;
-    }
-
-    if (result.isSuccess || !pendingPayment?.orderId) {
-      return;
-    }
-
-    hasAutoTriggeredRef.current = true;
-    const timeoutId = window.setTimeout(() => {
-      void handleSimulatePaid();
-    }, 350);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [pendingPayment?.orderId, result.isSuccess]);
+    clearStoredCarts();
+    clearCart();
+    setHasHandledSuccess(true);
+  }, [clearCart, hasHandledSuccess, result.isSuccess]);
 
   const accentClasses = getAccentClasses(result.state);
 
@@ -174,9 +109,7 @@ export const PaymentResult = () => {
         <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
           {getHeading(result.state)}
         </h1>
-        <p className="mt-4 text-sm leading-7 text-zinc-600">
-          {getMessage(result.state, Boolean(pendingPayment))}
-        </p>
+        <p className="mt-4 text-sm leading-7 text-zinc-600">{getMessage(result.state)}</p>
 
         {result.orderNumber && (
           <p className="mt-4 text-sm text-zinc-600">
@@ -211,41 +144,6 @@ export const PaymentResult = () => {
             失敗訊息
             <span className="mx-2 font-bold text-zinc-900">{result.rtnMsg}</span>
           </p>
-        )}
-
-        {isSimulating && !result.isSuccess && (
-          <p className="mt-6 text-sm font-medium text-sky-700">正在模擬付款結果...</p>
-        )}
-
-        <div className="mt-8 rounded-[1.5rem] border border-zinc-200 bg-white/70 p-5 text-left">
-          <p className="text-xs font-black uppercase tracking-[0.32em] text-zinc-500">
-            Debug Params
-          </p>
-          <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all text-sm leading-6 text-zinc-700">
-            {JSON.stringify(params, null, 2)}
-          </pre>
-        </div>
-
-        {import.meta.env.DEV && !result.isSuccess && pendingPayment && (
-          <div className="mt-6 rounded-[1.5rem] border border-sky-200 bg-sky-50 p-5 text-left">
-            <p className="text-xs font-black uppercase tracking-[0.32em] text-sky-600">
-              Dev Tools
-            </p>
-            <p className="mt-3 text-sm leading-7 text-sky-900">
-              開發環境可用這個按鈕模擬付款成功，方便驗證結果頁與後續訂單狀態更新。
-            </p>
-            {simulateError && (
-              <p className="mt-3 text-sm font-medium text-red-600">{simulateError}</p>
-            )}
-            <button
-              type="button"
-              onClick={() => void handleSimulatePaid()}
-              disabled={isSimulating}
-              className="mt-4 inline-flex rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
-            >
-              {isSimulating ? "模擬付款中..." : "模擬付款成功"}
-            </button>
-          </div>
         )}
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
