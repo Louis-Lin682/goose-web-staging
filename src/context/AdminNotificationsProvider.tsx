@@ -18,6 +18,7 @@ import { AdminNotificationsContext } from "./AdminNotificationsContext";
 
 const POLL_INTERVAL_MS = 12000;
 const NOTIFICATION_SOUND_PATH = "/mp3/newmessage.mp3";
+const AUTO_NOTIFICATION_REFRESH_DISABLED = true;
 
 export const AdminNotificationsProvider = ({
   children,
@@ -153,6 +154,10 @@ export const AdminNotificationsProvider = ({
         (fetchError.message.includes("401") ||
           fetchError.message.toLowerCase().includes("unauthorized"))
       ) {
+        if (AUTO_NOTIFICATION_REFRESH_DISABLED) {
+          return;
+        }
+
         // Give freshly-created sessions a brief window before treating a 401
         // as a hard timeout; cross-site cookies can lag behind the redirect.
         if (Date.now() - authActivatedAtRef.current < 3000) {
@@ -224,6 +229,10 @@ export const AdminNotificationsProvider = ({
 
     authActivatedAtRef.current = Date.now();
 
+    if (AUTO_NOTIFICATION_REFRESH_DISABLED) {
+      return;
+    }
+
     const initialTimer = window.setTimeout(() => {
       void refreshNotifications();
     }, 1200);
@@ -239,7 +248,7 @@ export const AdminNotificationsProvider = ({
   }, [isAdminActive, signOut]);
 
   useEffect(() => {
-    if (!isAdminActive) {
+    if (!isAdminActive || AUTO_NOTIFICATION_REFRESH_DISABLED) {
       return;
     }
 
