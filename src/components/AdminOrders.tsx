@@ -115,6 +115,30 @@ const paymentStatusBadgeStyles: Record<"UNPAID" | "PAID" | "FAILED", string> = {
   FAILED: "bg-red-100 text-red-700",
 };
 
+const resolvePaymentStatusDisplay = (order: {
+  paymentMethod: string;
+  paymentStatus: "UNPAID" | "PAID" | "FAILED";
+}) => {
+  if (order.paymentMethod === "online") {
+    if (order.paymentStatus === "PAID") {
+      return {
+        label: paymentStatusLabels.PAID,
+        badgeClassName: paymentStatusBadgeStyles.PAID,
+      };
+    }
+
+    return {
+      label: paymentStatusLabels.FAILED,
+      badgeClassName: paymentStatusBadgeStyles.FAILED,
+    };
+  }
+
+  return {
+    label: paymentStatusLabels[order.paymentStatus],
+    badgeClassName: paymentStatusBadgeStyles[order.paymentStatus],
+  };
+};
+
 const isOrderInRange = (createdAt: string, startDate: string, endDate: string) => {
   const orderDate = getDateString(new Date(createdAt));
   return orderDate >= startDate && orderDate <= endDate;
@@ -509,6 +533,7 @@ export const AdminOrders = () => {
               {filteredOrders.map((order) => {
                 const isExpanded = expandedOrderId === order.id;
                 const isUpdating = updatingOrderId === order.id;
+                const paymentStatusDisplay = resolvePaymentStatusDisplay(order);
 
                 return (
                   <article
@@ -547,9 +572,9 @@ export const AdminOrders = () => {
                             </p>
                             <div className="mt-2">
                               <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusBadgeStyles[order.paymentStatus]}`}
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusDisplay.badgeClassName}`}
                               >
-                                {paymentStatusLabels[order.paymentStatus]}
+                                {paymentStatusDisplay.label}
                               </span>
                             </div>
                           </div>

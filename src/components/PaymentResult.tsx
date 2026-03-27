@@ -7,17 +7,8 @@ import {
   simulateEcpayPaid,
 } from "../lib/orders";
 
-type PaymentResultState = "success" | "cancelled" | "failed";
+type PaymentResultState = "success" | "failed";
 
-const CANCEL_KEYWORDS = [
-  "取消",
-  "cancel",
-  "canceled",
-  "cancelled",
-  "aborted",
-  "使用者取消",
-  "交易取消",
-];
 const CART_STORAGE_PREFIX = "goose.cart.items";
 
 const clearStoredCarts = () => {
@@ -46,70 +37,40 @@ const clearStoredCarts = () => {
 
 const getResultState = (
   rtnCode: string | null,
-  rtnMsg: string | null,
   simulatedOrderNumber: string | null,
-  hasPendingPayment: boolean,
 ): PaymentResultState => {
   if (rtnCode === "1" || Boolean(simulatedOrderNumber)) {
     return "success";
   }
 
-  const normalizedMessage = (rtnMsg ?? "").toLowerCase();
-  if (CANCEL_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword.toLowerCase()))) {
-    return "cancelled";
-  }
-
-  if (!rtnCode && hasPendingPayment) {
-    return "cancelled";
-  }
-
   return "failed";
 };
 
-const getHeading = (state: PaymentResultState) => {
-  switch (state) {
-    case "success":
-      return "付款完成";
-    case "cancelled":
-      return "交易取消";
-    case "failed":
-    default:
-      return "交易失敗";
+const getHeading = (state: PaymentResultState) =>
+  state === "success" ? "付款完成" : "付款失敗";
+
+const getMessage = (state: PaymentResultState, hasPendingPayment: boolean) => {
+  if (state === "success") {
+    return "付款已完成，訂單已送出並進入待確認狀態。";
   }
+
+  if (hasPendingPayment) {
+    return "本次交易未完成，若仍想購買，請重新建立一筆新的交易。";
+  }
+
+  return "本次付款未成功，若仍想購買，請重新建立一筆新的交易。";
 };
 
-const getMessage = (state: PaymentResultState) => {
-  switch (state) {
-    case "success":
-      return "付款已完成，訂單已送出並進入待確認狀態。";
-    case "cancelled":
-      return "你已取消本次付款，若仍想購買，請重新建立一筆新的交易。";
-    case "failed":
-    default:
-      return "本次付款未成功，若仍想購買，請重新建立一筆新的交易。";
-  }
-};
-
-const getAccentClasses = (state: PaymentResultState) => {
-  switch (state) {
-    case "success":
-      return {
+const getAccentClasses = (state: PaymentResultState) =>
+  state === "success"
+    ? {
         card: "border-emerald-200 bg-emerald-50",
         tag: "text-emerald-600",
-      };
-    case "cancelled":
-      return {
-        card: "border-amber-200 bg-amber-50",
-        tag: "text-amber-600",
-      };
-    case "failed":
-    default:
-      return {
+      }
+    : {
         card: "border-rose-200 bg-rose-50",
         tag: "text-rose-600",
       };
-  }
-};
 
 export const PaymentResult = () => {
   const [searchParams] = useSearchParams();
@@ -135,12 +96,7 @@ export const PaymentResult = () => {
       pendingPayment?.orderNumber ??
       null;
     const paymentType = searchParams.get("PaymentType");
-    const state = getResultState(
-      rtnCode,
-      rtnMsg,
-      simulatedOrderNumber,
-      Boolean(pendingPayment),
-    );
+    const state = getResultState(rtnCode, simulatedOrderNumber);
 
     return {
       state,
@@ -175,7 +131,7 @@ export const PaymentResult = () => {
       setSimulatedOrderNumber(response.orderNumber);
     } catch (error) {
       setSimulateError(
-        error instanceof Error ? error.message : "模擬付款失敗，請稍後再試。",
+        error instanceof Error ? error.message : "模擬付款失敗，請稍後再試一次。",
       );
     } finally {
       setIsSimulating(false);
@@ -218,7 +174,9 @@ export const PaymentResult = () => {
         <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
           {getHeading(result.state)}
         </h1>
-        <p className="mt-4 text-sm leading-7 text-zinc-600">{getMessage(result.state)}</p>
+        <p className="mt-4 text-sm leading-7 text-zinc-600">
+          {getMessage(result.state, Boolean(pendingPayment))}
+        </p>
 
         {result.orderNumber && (
           <p className="mt-4 text-sm text-zinc-600">
@@ -250,13 +208,13 @@ export const PaymentResult = () => {
 
         {result.rtnMsg && !result.isSuccess && (
           <p className="mt-2 text-sm text-zinc-600">
-            交易訊息
+            失敗訊息
             <span className="mx-2 font-bold text-zinc-900">{result.rtnMsg}</span>
           </p>
         )}
 
         {isSimulating && !result.isSuccess && (
-          <p className="mt-6 text-sm font-medium text-sky-700">正在模擬付款成功...</p>
+          <p className="mt-6 text-sm font-medium text-sky-700">正在模擬付款結果...</p>
         )}
 
         <div className="mt-8 rounded-[1.5rem] border border-zinc-200 bg-white/70 p-5 text-left">
@@ -274,7 +232,7 @@ export const PaymentResult = () => {
               Dev Tools
             </p>
             <p className="mt-3 text-sm leading-7 text-sky-900">
-              若測試環境卡在第三方付款頁，可以先用這個按鈕模擬付款成功，確認站內結果頁與訂單狀態流程。
+              開發環境可用這個按鈕模擬付款成功，方便驗證結果頁與後續訂單狀態更新。
             </p>
             {simulateError && (
               <p className="mt-3 text-sm font-medium text-red-600">{simulateError}</p>
@@ -295,7 +253,7 @@ export const PaymentResult = () => {
             to="/orders"
             className="inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
           >
-            查看訂單狀態
+            訂單查詢
           </Link>
           <Link
             to="/"

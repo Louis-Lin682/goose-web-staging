@@ -66,6 +66,30 @@ const paymentStatusBadgeStyles: Record<"UNPAID" | "PAID" | "FAILED", string> = {
   FAILED: "bg-red-100 text-red-700",
 };
 
+const resolvePaymentStatusDisplay = (order: {
+  paymentMethod: string;
+  paymentStatus: "UNPAID" | "PAID" | "FAILED";
+}) => {
+  if (order.paymentMethod === "online") {
+    if (order.paymentStatus === "PAID") {
+      return {
+        label: paymentStatusLabels.PAID,
+        badgeClassName: paymentStatusBadgeStyles.PAID,
+      };
+    }
+
+    return {
+      label: paymentStatusLabels.FAILED,
+      badgeClassName: paymentStatusBadgeStyles.FAILED,
+    };
+  }
+
+  return {
+    label: paymentStatusLabels[order.paymentStatus],
+    badgeClassName: paymentStatusBadgeStyles[order.paymentStatus],
+  };
+};
+
 export const Orders = () => {
   const { isAuthReady, isAuthenticated, user } = useAuth();
   const [orders, setOrders] = useState<OrderHistoryEntry[]>([]);
@@ -267,6 +291,7 @@ export const Orders = () => {
           <div className="space-y-5">
             {orders.map((order) => {
               const isExpanded = expandedOrderId === order.id;
+              const paymentStatusDisplay = resolvePaymentStatusDisplay(order);
 
               return (
                 <article
@@ -297,9 +322,9 @@ export const Orders = () => {
                             {orderStatusLabels[order.status]}
                           </span>
                           <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusBadgeStyles[order.paymentStatus]}`}
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusDisplay.badgeClassName}`}
                           >
-                            {paymentStatusLabels[order.paymentStatus]}
+                            {paymentStatusDisplay.label}
                           </span>
                         </div>
                         <p className="mt-3 text-sm text-zinc-500">
@@ -347,9 +372,9 @@ export const Orders = () => {
                           </p>
                           <div className="mt-2">
                             <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusBadgeStyles[order.paymentStatus]}`}
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusDisplay.badgeClassName}`}
                             >
-                              {paymentStatusLabels[order.paymentStatus]}
+                              {paymentStatusDisplay.label}
                             </span>
                           </div>
                         </div>
