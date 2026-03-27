@@ -42,6 +42,8 @@ const clearLastActivity = () => {
 
 export const SessionTimeoutManager = () => {
   const navigate = useNavigate();
+  const isAdminArea =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
   const { isAuthReady, isAuthenticated, signOut } = useAuth();
   const [isTimeoutModalOpen, setIsTimeoutModalOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -50,6 +52,7 @@ export const SessionTimeoutManager = () => {
   const lastKeepAliveRef = useRef(0);
   const isHandlingTimeoutRef = useRef(false);
   const hasShownTimeoutModalRef = useRef(false);
+  const hasCompletedInitialAuthRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -74,6 +77,7 @@ export const SessionTimeoutManager = () => {
       clearLastActivity();
       isHandlingTimeoutRef.current = false;
       hasShownTimeoutModalRef.current = false;
+      hasCompletedInitialAuthRef.current = false;
       lastKeepAliveRef.current = 0;
       return;
     }
@@ -203,6 +207,12 @@ export const SessionTimeoutManager = () => {
 
       persistActivity();
       scheduleTimeout();
+
+      if (!hasCompletedInitialAuthRef.current) {
+        hasCompletedInitialAuthRef.current = true;
+        return;
+      }
+
       void keepSessionAlive();
     };
 
@@ -234,7 +244,6 @@ export const SessionTimeoutManager = () => {
     };
 
     persistActivity(true);
-    void keepSessionAlive(true);
     scheduleTimeout();
     intervalRef.current = window.setInterval(checkIdleState, IDLE_CHECK_INTERVAL_MS);
 
@@ -287,7 +296,7 @@ export const SessionTimeoutManager = () => {
             閒置過久，已自動登出
           </h2>
           <p className="mt-4 text-sm leading-7 text-zinc-600">
-            已超過 30 分鐘沒有操作，系統已為了安全性自動登出。
+            因為超過 30 分鐘沒有操作，系統已為了安全自動登出。
             請重新登入後再繼續使用。
           </p>
           <button
@@ -295,11 +304,11 @@ export const SessionTimeoutManager = () => {
             onClick={() => {
               setIsTimeoutModalOpen(false);
               hasShownTimeoutModalRef.current = false;
-              navigate("/", { replace: true });
+              navigate(isAdminArea ? "/admin/login" : "/", { replace: true });
             }}
             className="mt-6 h-12 w-full rounded-full bg-zinc-900 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
           >
-            返回首頁
+            {isAdminArea ? "返回後台登入" : "返回首頁"}
           </button>
         </div>
       </div>
