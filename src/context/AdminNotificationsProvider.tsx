@@ -17,64 +17,7 @@ import { useAuth } from "./useAuth";
 import { AdminNotificationsContext } from "./AdminNotificationsContext";
 
 const POLL_INTERVAL_MS = 12000;
-
-const playNotificationSound = () => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-
-  if (!AudioContextClass) {
-    return;
-  }
-
-  try {
-    const audioContext = new AudioContextClass();
-    const masterGain = audioContext.createGain();
-    masterGain.gain.setValueAtTime(0.18, audioContext.currentTime);
-    masterGain.connect(audioContext.destination);
-
-    const playTone = (
-      startTime: number,
-      fromFrequency: number,
-      toFrequency: number,
-    ) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.type = "triangle";
-      oscillator.frequency.setValueAtTime(fromFrequency, startTime);
-      oscillator.frequency.exponentialRampToValueAtTime(
-        toFrequency,
-        startTime + 0.18,
-      );
-
-      gainNode.gain.setValueAtTime(0.0001, startTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(masterGain);
-
-      oscillator.start(startTime);
-      oscillator.stop(startTime + 0.24);
-    };
-
-    const firstToneAt = audioContext.currentTime;
-    playTone(firstToneAt, 1040, 740);
-    playTone(firstToneAt + 0.26, 1240, 880);
-
-    window.setTimeout(() => {
-      void audioContext.close().catch(() => undefined);
-    }, 800);
-  } catch {
-    // Ignore browser sound playback issues and keep notification polling working.
-  }
-};
+const NOTIFICATION_SOUND_PATH = "/mp3/newmessage.mp3";
 
 export const AdminNotificationsProvider = ({
   children,
@@ -88,11 +31,76 @@ export const AdminNotificationsProvider = ({
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
   const hasHydratedRef = useRef(false);
   const previousUnreadCountRef = useRef(0);
   const latestFetchIdRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isSoundEnabledRef = useRef(false);
+  const isSoundUnlockedRef = useRef(false);
 
   const isAdminActive = isAuthReady && isAuthenticated && Boolean(user?.isAdmin);
+
+  const playStoredAudio = async () => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.currentTime = 0;
+    audio.muted = false;
+    audio.volume = 0.85;
+    await audio.play();
+  };
+
+  const playNotificationSound = async () => {
+    if (!isSoundEnabledRef.current || !isSoundUnlockedRef.current) {
+      return;
+    }
+
+    try {
+      await playStoredAudio();
+    } catch {
+      isSoundUnlockedRef.current = false;
+    }
+  };
+
+  const enableNotificationSound = async () => {
+    try {
+      await playStoredAudio();
+      isSoundUnlockedRef.current = true;
+      isSoundEnabledRef.current = true;
+      setIsSoundEnabled(true);
+    } catch {
+      isSoundUnlockedRef.current = false;
+      isSoundEnabledRef.current = false;
+      setIsSoundEnabled(false);
+    }
+  };
+
+  const disableNotificationSound = () => {
+    isSoundEnabledRef.current = false;
+    setIsSoundEnabled(false);
+    isSoundUnlockedRef.current = false;
+  };
+
+  useEffect(() => {
+    const audio = new Audio(NOTIFICATION_SOUND_PATH);
+    audio.preload = "auto";
+    audio.volume = 0.85;
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    isSoundEnabledRef.current = isSoundEnabled;
+  }, [isSoundEnabled]);
 
   const refreshNotifications = async (options?: { silent?: boolean }) => {
     if (!isAdminActive) {
@@ -124,7 +132,7 @@ export const AdminNotificationsProvider = ({
         hasHydratedRef.current &&
         response.unreadCount > previousUnreadCountRef.current
       ) {
-        playNotificationSound();
+        void playNotificationSound();
       }
 
       previousUnreadCountRef.current = response.unreadCount;
@@ -247,12 +255,15 @@ export const AdminNotificationsProvider = ({
       unreadCount,
       isLoading,
       error,
+      isSoundEnabled,
+      enableNotificationSound,
+      disableNotificationSound,
       refreshNotifications,
       markNotificationAsRead,
       markNotificationsForOrderAsRead,
       markAllNotificationsAsRead,
     }),
-    [error, isLoading, notifications, unreadCount],
+    [error, isLoading, isSoundEnabled, notifications, unreadCount],
   );
 
   return (

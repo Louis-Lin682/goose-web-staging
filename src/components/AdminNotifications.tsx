@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, BellOff, CheckCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { useAdminNotifications } from "../context/useAdminNotifications";
@@ -21,6 +21,9 @@ export const AdminNotifications = () => {
     unreadCount,
     isLoading,
     error: notificationsError,
+    isSoundEnabled,
+    enableNotificationSound,
+    disableNotificationSound,
     markNotificationAsRead,
   } = useAdminNotifications();
   const [markingNotificationId, setMarkingNotificationId] = useState<string | null>(null);
@@ -169,10 +172,35 @@ export const AdminNotifications = () => {
                   {latestNotification?.message ?? "目前沒有未讀的新訂單通知，新的訂單進來時會顯示在這裡。"}
                 </p>
               </div>
-
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
-                <Bell className="h-6 w-6" />
-              </div>
+              <button
+                  type="button"
+                  onClick={() =>
+                    void (isSoundEnabled
+                      ? Promise.resolve(disableNotificationSound())
+                      : enableNotificationSound())
+                  }
+                  aria-label={
+                    isSoundEnabled
+                      ? "通知音效已開啟，點擊可關閉"
+                      : "通知音效已關閉，點擊可開啟"
+                  }
+                  title={
+                    isSoundEnabled
+                      ? "通知音效已開啟，點擊可關閉"
+                      : "通知音效已關閉，點擊可開啟"
+                  }
+                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ${
+                    isSoundEnabled
+                      ? "border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+                      : "border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                  }`}
+                >
+                  {isSoundEnabled ? (
+                    <Bell className="h-6 w-6" />
+                  ) : (
+                    <BellOff className="h-6 w-6" />
+                  )}
+                </button>
             </div>
           </section>
 
@@ -185,13 +213,15 @@ export const AdminNotifications = () => {
                 <h2 className="mt-3 text-2xl font-black text-zinc-900">通知操作</h2>
               </div>
 
-              <div className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700">
-                <CheckCheck className="mr-2 h-4 w-4" />
-                點進訂單後自動移出未讀
+              <div className="flex items-center gap-3">
+                <div className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700">
+                  <CheckCheck className="mr-2 h-4 w-4" />
+                  點進訂單後自動移出未讀
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-6">
               <div className="rounded-2xl bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
                 <p className="font-semibold text-zinc-900">未讀通知</p>
                 <p className="mt-2">目前共有 {unreadCount} 筆新的未讀訂單提醒。</p>
