@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { EnvironmentInlineTag } from "./EnvironmentIndicator";
 import { useAuth } from "../context/useAuth";
 import { getCurrentUser, login as loginUser, logout as logoutUser } from "../lib/auth";
-import type { LoginPayload } from "../types/auth";
+import type { AuthUser, LoginPayload } from "../types/auth";
 
 const inputClassName =
   "h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400";
@@ -21,6 +21,30 @@ const initialLoginForm = (): LoginFormState => ({
   password: "",
   remember: true,
 });
+
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const resolveAdminUser = async (loginUserCandidate: AuthUser | null) => {
+  if (loginUserCandidate?.isAdmin) {
+    return loginUserCandidate;
+  }
+
+  const retryDelays = [250, 500, 900];
+
+  for (const delay of retryDelays) {
+    await wait(delay);
+    const currentUser = (await getCurrentUser()).user;
+
+    if (currentUser?.isAdmin) {
+      return currentUser;
+    }
+  }
+
+  return loginUserCandidate;
+};
 
 export const AdminLogin = () => {
   const navigate = useNavigate();
@@ -59,7 +83,7 @@ export const AdminLogin = () => {
 
     try {
       const loginResponse = await loginUser(payload);
-      const currentUser = loginResponse.user ?? (await getCurrentUser()).user;
+      const currentUser = await resolveAdminUser(loginResponse.user ?? null);
 
       if (!currentUser?.isAdmin) {
         await logoutUser().catch(() => undefined);
@@ -74,13 +98,14 @@ export const AdminLogin = () => {
       signIn(currentUser);
       setFeedback({
         type: "success",
-        message: "登入成功，正在前往後台...",
+        message: "登入成功，正在進入後台...",
       });
       navigate(redirectTarget, { replace: true });
     } catch (error) {
       setFeedback({
         type: "error",
-        message: error instanceof Error ? error.message : "後台登入失敗，請稍後再試。",
+        message:
+          error instanceof Error ? error.message : "後台登入失敗，請稍後再試。",
       });
     } finally {
       setIsSubmitting(false);
@@ -102,8 +127,7 @@ export const AdminLogin = () => {
               後台登入入口
             </h1>
             <p className="mt-5 max-w-md text-sm leading-7 text-zinc-300">
-              這裡是管理員專用登入頁。登入後即可查看通知、處理訂單、調整商品與會員資料，
-              不需再從前台會員彈窗進入後台。
+              這裡是管理員專用登入頁。登入後即可查看通知、處理訂單、調整商品與會員資料，不需要再從前台會員彈窗進入後台。
             </p>
 
             <div className="mt-10 space-y-4">
@@ -112,7 +136,7 @@ export const AdminLogin = () => {
                 <div>
                   <p className="text-sm font-semibold text-white">管理權限分流更清楚</p>
                   <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    一般會員從前台登入，管理員則從獨立後台入口登入，權限與操作情境會更直覺。
+                    一般會員從前台登入，管理員則從這個獨立入口登入，權限與操作情境會更直覺。
                   </p>
                 </div>
               </div>
@@ -160,7 +184,7 @@ export const AdminLogin = () => {
                     setForm((prev) => ({ ...prev, identifier: event.target.value }))
                   }
                   required
-                  placeholder="請輸入管理員電話或 Email"
+                  placeholder="請輸入管理員電話、Email 或帳號"
                   className={inputClassName}
                 />
               </div>
