@@ -7,10 +7,71 @@ import {
   simulateEcpayPaid,
 } from "../lib/orders";
 
-const getMessage = (isSuccess: boolean) =>
-  isSuccess
-    ? "付款已完成，訂單已送出並進入待確認狀態。"
-    : "付款尚未完成，你可以回訂單查詢確認目前狀態。";
+type PaymentResultState = "success" | "cancelled" | "failed";
+
+const CANCEL_KEYWORDS = ["取消", "cancel", "canceled", "cancelled", "aborted"];
+
+const getResultState = (
+  rtnCode: string | null,
+  rtnMsg: string | null,
+  simulatedOrderNumber: string | null,
+): PaymentResultState => {
+  if (rtnCode === "1" || Boolean(simulatedOrderNumber)) {
+    return "success";
+  }
+
+  const normalizedMessage = (rtnMsg ?? "").toLowerCase();
+  if (CANCEL_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword))) {
+    return "cancelled";
+  }
+
+  return "failed";
+};
+
+const getHeading = (state: PaymentResultState) => {
+  switch (state) {
+    case "success":
+      return "付款完成";
+    case "cancelled":
+      return "交易取消";
+    case "failed":
+    default:
+      return "交易失敗";
+  }
+};
+
+const getMessage = (state: PaymentResultState) => {
+  switch (state) {
+    case "success":
+      return "付款已完成，訂單已送出並進入待確認狀態。";
+    case "cancelled":
+      return "你已取消本次付款，若仍想購買，請重新建立一筆新的交易。";
+    case "failed":
+    default:
+      return "本次付款未成功，若要再次付款，請重新建立一筆新的交易。";
+  }
+};
+
+const getAccentClasses = (state: PaymentResultState) => {
+  switch (state) {
+    case "success":
+      return {
+        card: "border-emerald-200 bg-emerald-50",
+        tag: "text-emerald-600",
+      };
+    case "cancelled":
+      return {
+        card: "border-amber-200 bg-amber-50",
+        tag: "text-amber-600",
+      };
+    case "failed":
+    default:
+      return {
+        card: "border-rose-200 bg-rose-50",
+        tag: "text-rose-600",
+      };
+  }
+};
 
 export const PaymentResult = () => {
   const [searchParams] = useSearchParams();
@@ -29,6 +90,7 @@ export const PaymentResult = () => {
 
   const result = useMemo(() => {
     const rtnCode = searchParams.get("RtnCode");
+    const rtnMsg = searchParams.get("RtnMsg");
     const tradeNo = searchParams.get("TradeNo");
     const merchantTradeNo = searchParams.get("MerchantTradeNo");
     const orderNumber =
@@ -38,13 +100,16 @@ export const PaymentResult = () => {
       pendingPayment?.orderNumber ??
       null;
     const paymentType = searchParams.get("PaymentType");
-    const isSuccess = rtnCode === "1" || Boolean(tradeNo) || Boolean(simulatedOrderNumber);
+    const state = getResultState(rtnCode, rtnMsg, simulatedOrderNumber);
 
     return {
-      isSuccess,
+      state,
+      rtnCode,
+      rtnMsg,
       orderNumber,
       tradeNo,
       paymentType,
+      isSuccess: state === "success",
     };
   }, [pendingPayment?.orderNumber, searchParams, simulatedOrderNumber]);
 
@@ -71,7 +136,7 @@ export const PaymentResult = () => {
       setSimulatedOrderNumber(response.orderNumber);
     } catch (error) {
       setSimulateError(
-        error instanceof Error ? error.message : "模擬付款失敗，請稍後再試一次。",
+        error instanceof Error ? error.message : "模擬付款失敗，請稍後再試。",
       );
     } finally {
       setIsSimulating(false);
@@ -101,26 +166,20 @@ export const PaymentResult = () => {
     };
   }, [pendingPayment?.orderId, result.isSuccess]);
 
+  const accentClasses = getAccentClasses(result.state);
+
   return (
     <main className="min-h-screen bg-white px-6 pb-24 pt-40">
       <div
-        className={`mx-auto max-w-4xl rounded-[2rem] border px-8 py-16 text-center ${
-          result.isSuccess
-            ? "border-emerald-200 bg-emerald-50"
-            : "border-amber-200 bg-amber-50"
-        }`}
+        className={`mx-auto max-w-4xl rounded-[2rem] border px-8 py-16 text-center ${accentClasses.card}`}
       >
-        <p
-          className={`text-xs font-black uppercase tracking-[0.4em] ${
-            result.isSuccess ? "text-emerald-600" : "text-amber-600"
-          }`}
-        >
+        <p className={`text-xs font-black uppercase tracking-[0.4em] ${accentClasses.tag}`}>
           Payment Result
         </p>
         <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 md:text-6xl">
-          {result.isSuccess ? "付款完成" : "付款未完成"}
+          {getHeading(result.state)}
         </h1>
-        <p className="mt-4 text-sm leading-7 text-zinc-600">{getMessage(result.isSuccess)}</p>
+        <p className="mt-4 text-sm leading-7 text-zinc-600">{getMessage(result.state)}</p>
 
         {result.orderNumber && (
           <p className="mt-4 text-sm text-zinc-600">
@@ -143,9 +202,23 @@ export const PaymentResult = () => {
           </p>
         )}
 
+        {result.rtnCode && !result.isSuccess && (
+          <p className="mt-2 text-sm text-zinc-600">
+            交易結果代碼
+            <span className="mx-2 font-bold text-zinc-900">{result.rtnCode}</span>
+          </p>
+        )}
+
+        {result.rtnMsg && !result.isSuccess && (
+          <p className="mt-2 text-sm text-zinc-600">
+            交易結果說明
+            <span className="mx-2 font-bold text-zinc-900">{result.rtnMsg}</span>
+          </p>
+        )}
+
         {isSimulating && !result.isSuccess && (
           <p className="mt-6 text-sm font-medium text-sky-700">
-            正在補上開發環境的模擬付款成功...
+            正在嘗試模擬付款成功...
           </p>
         )}
 
@@ -164,7 +237,7 @@ export const PaymentResult = () => {
               Dev Tools
             </p>
             <p className="mt-3 text-sm leading-7 text-sky-900">
-              如果綠界 sandbox 測試卡流程卡住，系統會先自動補一次模擬付款成功；如果還是沒成功，你也可以手動再試一次。
+              若綠界 sandbox 測試流程不穩，可在本機開發環境使用模擬付款成功快速驗證站內回寫。
             </p>
             {simulateError && (
               <p className="mt-3 text-sm font-medium text-red-600">{simulateError}</p>
@@ -175,7 +248,7 @@ export const PaymentResult = () => {
               disabled={isSimulating}
               className="mt-4 inline-flex rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
             >
-              {isSimulating ? "模擬付款中..." : "重新模擬付款成功"}
+              {isSimulating ? "模擬付款中..." : "模擬付款成功"}
             </button>
           </div>
         )}
