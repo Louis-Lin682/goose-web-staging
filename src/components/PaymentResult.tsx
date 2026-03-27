@@ -9,7 +9,15 @@ import {
 
 type PaymentResultState = "success" | "cancelled" | "failed";
 
-const CANCEL_KEYWORDS = ["取消", "cancel", "canceled", "cancelled", "aborted"];
+const CANCEL_KEYWORDS = [
+  "取消",
+  "cancel",
+  "canceled",
+  "cancelled",
+  "aborted",
+  "使用者取消",
+  "交易取消",
+];
 const CART_STORAGE_PREFIX = "goose.cart.items";
 
 const clearStoredCarts = () => {
@@ -47,7 +55,7 @@ const getResultState = (
   }
 
   const normalizedMessage = (rtnMsg ?? "").toLowerCase();
-  if (CANCEL_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword))) {
+  if (CANCEL_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword.toLowerCase()))) {
     return "cancelled";
   }
 
@@ -78,7 +86,7 @@ const getMessage = (state: PaymentResultState) => {
       return "你已取消本次付款，若仍想購買，請重新建立一筆新的交易。";
     case "failed":
     default:
-      return "本次付款未成功，若要再次付款，請重新建立一筆新的交易。";
+      return "本次付款未成功，若仍想購買，請重新建立一筆新的交易。";
   }
 };
 
@@ -113,10 +121,7 @@ export const PaymentResult = () => {
   const hasHandledSuccessRef = useRef(false);
 
   const pendingPayment = useMemo(() => getPendingPayment(), []);
-  const params = useMemo(
-    () => Object.fromEntries(searchParams.entries()),
-    [searchParams],
-  );
+  const params = useMemo(() => Object.fromEntries(searchParams.entries()), [searchParams]);
 
   const result = useMemo(() => {
     const rtnCode = searchParams.get("RtnCode");
@@ -149,15 +154,13 @@ export const PaymentResult = () => {
   }, [pendingPayment?.orderNumber, searchParams, simulatedOrderNumber]);
 
   useEffect(() => {
-    console.log("ECPay result params:", params);
-
     if (result.isSuccess && !hasHandledSuccessRef.current) {
       hasHandledSuccessRef.current = true;
       clearPendingPayment();
       clearStoredCarts();
       clearCart();
     }
-  }, [clearCart, params, result.isSuccess]);
+  }, [clearCart, result.isSuccess]);
 
   const handleSimulatePaid = async () => {
     if (!pendingPayment?.orderId) {
@@ -240,22 +243,20 @@ export const PaymentResult = () => {
 
         {result.rtnCode && !result.isSuccess && (
           <p className="mt-2 text-sm text-zinc-600">
-            交易結果代碼
+            交易代碼
             <span className="mx-2 font-bold text-zinc-900">{result.rtnCode}</span>
           </p>
         )}
 
         {result.rtnMsg && !result.isSuccess && (
           <p className="mt-2 text-sm text-zinc-600">
-            交易結果說明
+            交易訊息
             <span className="mx-2 font-bold text-zinc-900">{result.rtnMsg}</span>
           </p>
         )}
 
         {isSimulating && !result.isSuccess && (
-          <p className="mt-6 text-sm font-medium text-sky-700">
-            正在嘗試模擬付款成功...
-          </p>
+          <p className="mt-6 text-sm font-medium text-sky-700">正在模擬付款成功...</p>
         )}
 
         <div className="mt-8 rounded-[1.5rem] border border-zinc-200 bg-white/70 p-5 text-left">
@@ -273,7 +274,7 @@ export const PaymentResult = () => {
               Dev Tools
             </p>
             <p className="mt-3 text-sm leading-7 text-sky-900">
-              若綠界 sandbox 測試流程不穩，可在本機開發環境使用模擬付款成功快速驗證站內回寫。
+              若測試環境卡在第三方付款頁，可以先用這個按鈕模擬付款成功，確認站內結果頁與訂單狀態流程。
             </p>
             {simulateError && (
               <p className="mt-3 text-sm font-medium text-red-600">{simulateError}</p>
@@ -294,7 +295,7 @@ export const PaymentResult = () => {
             to="/orders"
             className="inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
           >
-            前往訂單查詢
+            查看訂單狀態
           </Link>
           <Link
             to="/"

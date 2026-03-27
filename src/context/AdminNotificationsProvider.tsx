@@ -35,6 +35,7 @@ export const AdminNotificationsProvider = ({
   const [isSoundEnabled, setIsSoundEnabled] = useState(false);
   const hasHydratedRef = useRef(false);
   const previousUnreadCountRef = useRef(0);
+  const previousUnreadNotificationIdsRef = useRef<string[]>([]);
   const latestFetchIdRef = useRef(0);
   const authActivatedAtRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -130,14 +131,22 @@ export const AdminNotificationsProvider = ({
       setUnreadCount(response.unreadCount);
       setError(null);
 
-      if (
+      const unreadNotificationIds = response.notifications
+        .filter((notification) => !notification.isRead)
+        .map((notification) => notification.id);
+      const hasNewUnreadNotification =
         hasHydratedRef.current &&
-        response.unreadCount > previousUnreadCountRef.current
-      ) {
+        unreadNotificationIds.some(
+          (notificationId) =>
+            !previousUnreadNotificationIdsRef.current.includes(notificationId),
+        );
+
+      if (hasNewUnreadNotification) {
         void playNotificationSound();
       }
 
       previousUnreadCountRef.current = response.unreadCount;
+      previousUnreadNotificationIdsRef.current = unreadNotificationIds;
       hasHydratedRef.current = true;
     } catch (fetchError) {
       if (fetchId !== latestFetchIdRef.current) {
@@ -168,6 +177,7 @@ export const AdminNotificationsProvider = ({
         setUnreadCount(0);
         hasHydratedRef.current = false;
         previousUnreadCountRef.current = 0;
+        previousUnreadNotificationIdsRef.current = [];
 
         try {
           await logoutUser();
@@ -216,6 +226,7 @@ export const AdminNotificationsProvider = ({
   useEffect(() => {
     hasHydratedRef.current = false;
     previousUnreadCountRef.current = 0;
+    previousUnreadNotificationIdsRef.current = [];
     latestFetchIdRef.current = 0;
 
     if (!isAdminActive) {
