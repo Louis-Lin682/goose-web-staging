@@ -10,6 +10,7 @@ import type { OrderHistoryEntry, OrderStatus } from "../types/order";
 type OrderDatePreset = "today" | "this-month" | "last-month" | "custom";
 
 const MIN_ACTION_LOADING_MS = 650;
+const REFRESH_INTERVAL_MS = 30 * 1000;
 
 const wait = (ms: number) =>
   new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -222,6 +223,7 @@ export const AdminOrders = () => {
     }
 
     let isMounted = true;
+    let intervalId: number | null = null;
 
     const refreshOrdersFromNotifications = async () => {
       try {
@@ -243,13 +245,27 @@ export const AdminOrders = () => {
       void refreshOrdersFromNotifications();
     };
 
+    const startPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+
+      intervalId = window.setInterval(() => {
+        void refreshOrdersFromNotifications();
+      }, REFRESH_INTERVAL_MS);
+    };
+
     void refreshOrdersFromNotifications();
+    startPolling();
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handlePageShow);
     window.addEventListener("pageshow", handlePageShow);
 
     return () => {
       isMounted = false;
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handlePageShow);
       window.removeEventListener("pageshow", handlePageShow);
