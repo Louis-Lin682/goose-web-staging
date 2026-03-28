@@ -1,11 +1,13 @@
 ﻿import { useMemo, useState, type FormEvent } from "react";
 import { CircleAlert } from "lucide-react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
 import { useAuth } from "../context/useAuth";
 import { useCart } from "../context/useCart";
 import {
+  getPendingPayment,
   clearPendingPayment,
   createEcpayCheckout,
   createOrder,
@@ -365,6 +367,7 @@ export const Checkout = () => {
   const [touchedFields, setTouchedFields] = useState<CheckoutTouchedFields>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
+  const [pendingPayment, setPendingPayment] = useState(() => getPendingPayment());
   const [form, setForm] = useState<CheckoutFormState>(() => buildInitialForm());
   const isPickup = form.deliveryMethod === "pickup";
 
@@ -376,6 +379,34 @@ export const Checkout = () => {
   const shippingFee = getShippingFee(subtotal, form.deliveryMethod);
   const codFee = getCodFee(subtotal, form.deliveryMethod, form.paymentMethod);
   const finalTotal = subtotal + shippingFee + codFee;
+
+  useEffect(() => {
+    const syncPendingPayment = () => {
+      const nextPendingPayment = getPendingPayment();
+      setPendingPayment(nextPendingPayment);
+
+      if (!nextPendingPayment) {
+        return;
+      }
+
+      setSubmitError(null);
+      setSubmitMessage(
+        `偵測到尚未完成付款的訂單 ${nextPendingPayment.orderNumber}，可再次前往綠界完成付款。`,
+      );
+    };
+
+    syncPendingPayment();
+
+    const handlePageShow = () => {
+      syncPendingPayment();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, []);
 
   const handleFieldChange = <K extends keyof CheckoutFormState>(
     field: K,
@@ -392,6 +423,26 @@ export const Checkout = () => {
       ...current,
       [field]: validateCheckoutField(field, form[field], form.deliveryMethod),
     }));
+  };
+
+  const handleResumePendingPayment = async () => {
+    if (!pendingPayment) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitMessage(`正在重新導向至綠界付款頁，訂單編號 ${pendingPayment.orderNumber}...`);
+
+    try {
+      const checkoutResponse = await createEcpayCheckout(pendingPayment.orderId);
+      submitEcpayCheckout(checkoutResponse.action, checkoutResponse.fields);
+    } catch (error) {
+      setSubmitMessage(null);
+      setSubmitError(resolveCheckoutErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeliveryMethodChange = (nextMethod: OrderDeliveryMethod) => {
@@ -466,10 +517,13 @@ export const Checkout = () => {
       const response = await createOrder(payload);
 
       if (form.paymentMethod === "online") {
-        savePendingPayment({
+        const nextPendingPayment = {
           orderId: response.orderId,
           orderNumber: response.orderNumber,
-        });
+        };
+
+        savePendingPayment(nextPendingPayment);
+        setPendingPayment(nextPendingPayment);
         setSubmitMessage("訂單建立成功，正在前往綠界付款...");
         const checkoutResponse = await createEcpayCheckout(response.orderId);
         submitEcpayCheckout(checkoutResponse.action, checkoutResponse.fields);
@@ -477,6 +531,7 @@ export const Checkout = () => {
       }
 
       clearPendingPayment();
+      setPendingPayment(null);
       clearCart();
       setCompletedOrderNumber(response.orderNumber);
       setSubmitMessage("訂單建立成功，我們會儘快為你安排後續處理。");
@@ -872,17 +927,34 @@ export const Checkout = () => {
               </div>
             )}
 
+            {pendingPayment && form.paymentMethod === "online" && (
+              <div className="rounded-3xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700">
+                目前有一筆尚未完成付款的訂單
+                <span className="mx-1 font-semibold text-zinc-900">
+                  {pendingPayment.orderNumber}
+                </span>
+                ，若剛剛中途離開綠界頁面，可直接再次前往付款。
+              </div>
+            )}
+
             <div className="order-5 flex flex-col gap-3 pt-2 sm:flex-row lg:order-none">
               <Button
-                type="submit"
+                type={pendingPayment && form.paymentMethod === "online" ? "button" : "submit"}
+                onClick={
+                  pendingPayment && form.paymentMethod === "online"
+                    ? handleResumePendingPayment
+                    : undefined
+                }
                 disabled={isSubmitting}
                 className="h-12 rounded-full bg-zinc-900 px-6 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
               >
                 {isSubmitting
                   ? "送出中..."
-                  : form.paymentMethod === "online"
-                    ? "前往付款"
-                    : "結帳送出"}
+                  : pendingPayment && form.paymentMethod === "online"
+                    ? "再次前往付款"
+                    : form.paymentMethod === "online"
+                      ? "前往付款"
+                      : "結帳送出"}
               </Button>
               <Link
                 to="/cart"

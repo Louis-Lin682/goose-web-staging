@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/useCart";
+import { clearPendingPayment } from "../lib/orders";
 
 type PaymentResultState = "success" | "failed";
 
@@ -87,6 +88,8 @@ export const PaymentResult = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    clearPendingPayment();
+
     if (!result.isSuccess || hasHandledSuccess) {
       return;
     }
