@@ -330,24 +330,6 @@ export const Orders = () => {
                         <p className="mt-3 text-sm text-zinc-500">
                           {formatDate(order.createdAt)}
                         </p>
-                        <div className="mt-4 grid gap-3 rounded-2xl bg-zinc-50 px-4 py-3">
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-                              配送方式
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-900">
-                              {deliveryLabels[order.deliveryMethod] ?? order.deliveryMethod}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-                              付款方式
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-900">
-                              {paymentLabels[order.paymentMethod] ?? order.paymentMethod}
-                            </p>
-                          </div>
-                        </div>
                       </div>
 
                       <div className="rounded-full border border-zinc-200 p-2 text-zinc-500 transition-colors hover:border-orange-300 hover:text-orange-600">
@@ -360,7 +342,7 @@ export const Orders = () => {
                     </div>
 
                     <div className="hidden items-start justify-between gap-6 md:flex">
-                      <div className="grid flex-1 gap-5 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]">
+                      <div className="grid flex-1 gap-5 md:grid-cols-[1.2fr_0.8fr_0.8fr]">
                         <div>
                           <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
                             訂單編號
@@ -395,22 +377,6 @@ export const Orders = () => {
                               {paymentStatusDisplay.label}
                             </span>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                            配送方式
-                          </p>
-                          <p className="mt-2 font-semibold text-zinc-900">
-                            {deliveryLabels[order.deliveryMethod] ?? order.deliveryMethod}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                            付款方式
-                          </p>
-                          <p className="mt-2 font-semibold text-zinc-900">
-                            {paymentLabels[order.paymentMethod] ?? order.paymentMethod}
-                          </p>
                         </div>
                       </div>
 
