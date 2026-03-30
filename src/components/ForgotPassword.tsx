@@ -230,47 +230,51 @@ export const ForgotPassword = () => {
               </form>
             ) : (
               <form className="space-y-5" onSubmit={handleResetSubmit}>
-                <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-zinc-700">
-                  請為這次的密碼重設設定新密碼。
-                </div>
+                {resetFeedback?.type !== "success" && (
+                  <>
+                    <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-zinc-700">
+                      請為這次的密碼重設設定新密碼。
+                    </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                    新密碼
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={resetForm.password}
-                    onChange={(event) =>
-                      setResetForm((prev) => ({
-                        ...prev,
-                        password: event.target.value,
-                      }))
-                    }
-                    placeholder="至少 8 個字元"
-                    className={inputClassName}
-                  />
-                </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                        新密碼
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={resetForm.password}
+                        onChange={(event) =>
+                          setResetForm((prev) => ({
+                            ...prev,
+                            password: event.target.value,
+                          }))
+                        }
+                        placeholder="至少 8 個字元"
+                        className={inputClassName}
+                      />
+                    </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-900">
-                    確認新密碼
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={resetForm.confirmPassword}
-                    onChange={(event) =>
-                      setResetForm((prev) => ({
-                        ...prev,
-                        confirmPassword: event.target.value,
-                      }))
-                    }
-                    placeholder="再次輸入新密碼"
-                    className={inputClassName}
-                  />
-                </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-zinc-900">
+                        確認新密碼
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={resetForm.confirmPassword}
+                        onChange={(event) =>
+                          setResetForm((prev) => ({
+                            ...prev,
+                            confirmPassword: event.target.value,
+                          }))
+                        }
+                        placeholder="再次輸入新密碼"
+                        className={inputClassName}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {resetFeedback && (
                   <div
