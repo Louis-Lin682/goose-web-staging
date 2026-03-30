@@ -19,6 +19,8 @@ import { AdminNotificationsContext } from "./AdminNotificationsContext";
 const POLL_INTERVAL_MS = 12000;
 const NOTIFICATION_SOUND_PATH = "/mp3/newmessage.mp3";
 const AUTO_NOTIFICATION_REFRESH_DISABLED = false;
+const SERVER_ERROR_BACKOFF_INITIAL_MS = 15000;
+const SERVER_ERROR_BACKOFF_MAX_MS = 60000;
 
 export const AdminNotificationsProvider = ({
   children,
@@ -38,6 +40,8 @@ export const AdminNotificationsProvider = ({
   const previousUnreadNotificationIdsRef = useRef<string[]>([]);
   const latestFetchIdRef = useRef(0);
   const authActivatedAtRef = useRef(0);
+  const serverErrorBackoffMsRef = useRef(0);
+  const serverErrorRetryAtRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isSoundEnabledRef = useRef(false);
   const isSoundUnlockedRef = useRef(false);
@@ -114,6 +118,10 @@ export const AdminNotificationsProvider = ({
       return;
     }
 
+    if (options?.silent && serverErrorRetryAtRef.current > Date.now()) {
+      return;
+    }
+
     if (!hasHydratedRef.current || !options?.silent) {
       setIsLoading(true);
     }
@@ -130,6 +138,8 @@ export const AdminNotificationsProvider = ({
       setNotifications(response.notifications);
       setUnreadCount(response.unreadCount);
       setError(null);
+      serverErrorBackoffMsRef.current = 0;
+      serverErrorRetryAtRef.current = 0;
 
       const unreadNotificationIds = response.notifications
         .filter((notification) => !notification.isRead)
@@ -157,6 +167,27 @@ export const AdminNotificationsProvider = ({
         fetchError instanceof Error ? fetchError.message : "通知載入失敗。";
 
       setError(message);
+      const isServerUnavailable =
+        fetchError instanceof Error &&
+        (fetchError.message === "Request timeout" ||
+          fetchError.message.includes("500") ||
+          fetchError.message.includes("502") ||
+          fetchError.message.includes("503") ||
+          fetchError.message.includes("504") ||
+          fetchError.message.toLowerCase().includes("bad gateway"));
+
+      if (isServerUnavailable) {
+        const nextBackoffMs = serverErrorBackoffMsRef.current
+          ? Math.min(
+              serverErrorBackoffMsRef.current * 2,
+              SERVER_ERROR_BACKOFF_MAX_MS,
+            )
+          : SERVER_ERROR_BACKOFF_INITIAL_MS;
+
+        serverErrorBackoffMsRef.current = nextBackoffMs;
+        serverErrorRetryAtRef.current = Date.now() + nextBackoffMs;
+        return;
+      }
 
       if (
         fetchError instanceof Error &&
@@ -228,6 +259,8 @@ export const AdminNotificationsProvider = ({
     previousUnreadCountRef.current = 0;
     previousUnreadNotificationIdsRef.current = [];
     latestFetchIdRef.current = 0;
+    serverErrorBackoffMsRef.current = 0;
+    serverErrorRetryAtRef.current = 0;
 
     if (!isAdminActive) {
       setNotifications([]);
