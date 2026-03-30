@@ -72,7 +72,7 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => {
           </section>
           <section className="space-y-3"><p>1. 商品皆為新鮮現做，建議提早下單，實際到貨時間仍以店家通知為準。</p><p>2. 門市自取訂單請留意手機與 Email，店家會主動聯繫取貨資訊。</p><p>3. 如遇節慶高峰或天候影響，配送與到貨時間可能調整，敬請見諒。</p></section>
           <section className="grid gap-6 rounded-[1.75rem] bg-zinc-50 px-5 py-5 text-sm text-zinc-600 md:grid-cols-2">
-            <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Store</p><p className="mt-3 font-semibold text-zinc-900">門市地址</p><p>台中市南屯區五權西路二段 746-1 號</p></div>
+            <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Store</p><p className="mt-3 font-semibold text-zinc-900">門市地址</p><p>台中市南屯區永春東七路746-1號</p></div>
             <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Contact</p><p className="mt-3 font-semibold text-zinc-900">訂購專線</p><a href="tel:04-2380-0255" className="text-orange-600">04-2380-0255</a><p className="mt-3 font-semibold text-zinc-900">取貨方式</p><p>黑貓低溫宅配 / 門市自取</p><p className="mt-3 font-semibold text-zinc-900">電子郵件</p><a href="mailto:christian7267@yahoo.com.tw" className="text-orange-600">christian7267@yahoo.com.tw</a></div>
           </section>
         </div>

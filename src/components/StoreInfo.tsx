@@ -9,7 +9,7 @@ const store = {
   hours: "16:30 - 21:00",
   note: "每週二公休",
   instagram: "https://www.instagram.com/gozoshe.food",
-  line: "https://line.me/ti/p/KSCb_MIGCC",
+  line: "https://line.me/ti/p/@737uyerc",
   mapEmbed:
     "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3640.7307105269497!2d120.63156077590584!3d24.14609347346932!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x34693dc4889a8159%3A0xc7727991dd8acdae!2zNDA46Ie65Lit5biC5Y2X5bGv5Y2A5rC45pil5p2x5LiD6LevNzQ2LTHomZ8!5e0!3m2!1szh-TW!2stw!4v1774147621285!5m2!1szh-TW!2stw",
 };
