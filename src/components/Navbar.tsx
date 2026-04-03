@@ -14,7 +14,7 @@ type AuthMode = "login" | "register";
 type LoginFormState = { identifier: string; password: string; remember: boolean };
 type RegisterFormState = { name: string; phone: string; email: string; password: string; confirmPassword: string };
 
-const navLinks = [{ to: "/origin", label: "品牌故事" }, { to: "/fullMenu", label: "完整菜單" }, { to: "/store", label: "門市資訊" }];
+const navLinks = [{ to: "/origin", label: "品牌故事" }, { to: "/fullMenu", label: "產品列表" }, { to: "/store", label: "門市資訊" }];
 const shippingRows = [
   { amount: "1000 元以下", shipping: "200 元", codFee: "30 元" },
   { amount: "1001～1800 元", shipping: "230 元", codFee: "30 元" },
@@ -62,15 +62,15 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => {
           <button type="button" onClick={onClose} className="rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900" aria-label="關閉訂購須知"><X /></button>
         </div>
         <div className="max-h-[calc(85vh-96px)] space-y-8 overflow-y-auto px-6 py-6 text-sm leading-7 text-zinc-600">
-          <section><p>請先至<Link to="/fullMenu" onClick={onClose} className="mx-1 font-semibold text-orange-600 underline underline-offset-4">完整菜單</Link>選購商品，再依照以下方式完成訂購流程。</p></section>
+          <section><p>請先至<Link to="/fullMenu" onClick={onClose} className="mx-1 font-semibold text-orange-600 underline underline-offset-4">產品列表</Link>選購商品，再依照以下方式完成訂購流程。</p><p>訂購前可先註冊會員，也可先選購商品，於結帳時一併完成會員註冊。</p></section>
           <section className="space-y-4">
-            <div><h3 className="text-base font-bold text-zinc-900">運費與貨到付款手續費</h3><p>配送金額與貨到付款手續費依訂單金額區間計算。</p></div>
+            <div><h3 className="text-base font-bold text-zinc-900">運費與貨到付款手續費</h3><p>皆採用統一速達宅急便費用計算方式。</p></div>
             <div className="overflow-hidden rounded-3xl border border-zinc-200">
               <table className="w-full border-collapse text-center text-sm"><thead className="bg-zinc-50 text-zinc-900"><tr><th className="py-3 font-semibold">訂購金額</th><th className="py-3 font-semibold">運費</th><th className="py-3 font-semibold">貨到付款手續費</th></tr></thead><tbody>{shippingRows.map((row) => <tr key={row.amount} className="border-t border-zinc-100"><td className="py-3">{row.amount}</td><td className="py-3">{row.shipping}</td><td className="py-3">{row.codFee}</td></tr>)}</tbody></table>
             </div>
             <p className="text-sm text-zinc-500">訂單滿 6000 元以上可享免運優惠。</p>
           </section>
-          <section className="space-y-3"><p>1. 商品皆為新鮮現做，建議提早下單，實際到貨時間仍以店家通知為準。</p><p>2. 門市自取訂單請留意手機與 Email，店家會主動聯繫取貨資訊。</p><p>3. 如遇節慶高峰或天候影響，配送與到貨時間可能調整，敬請見諒。</p></section>
+          <section className="space-y-3"><p>1. 網路訂購須7天後才出貨，若要更改時間請在備註說明，實際到貨日須視宅急便當區配送狀況而定。</p><p>2. 門市自取訂單請留意手機與 Email，店家會主動聯繫取貨資訊。</p><p>3. 如遇節慶高峰或天候影響，配送與到貨時間可能調整，敬請見諒。</p><p>4. 離島地區不適用以上運費計算方式(請來電詢問)。</p></section>
           <section className="grid gap-6 rounded-[1.75rem] bg-zinc-50 px-5 py-5 text-sm text-zinc-600 md:grid-cols-2">
             <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Store</p><p className="mt-3 font-semibold text-zinc-900">門市地址</p><p>台中市南屯區永春東七路746-1號</p></div>
             <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Contact</p><p className="mt-3 font-semibold text-zinc-900">訂購專線</p><a href="tel:04-2380-0255" className="text-orange-600">04-2380-0255</a><p className="mt-3 font-semibold text-zinc-900">取貨方式</p><p>黑貓低溫宅配 / 門市自取</p><p className="mt-3 font-semibold text-zinc-900">電子郵件</p><a href="mailto:christian7267@yahoo.com.tw" className="text-orange-600">christian7267@yahoo.com.tw</a></div>
@@ -232,7 +232,13 @@ const AuthModal = ({
                     <div><RequiredLabel>密碼</RequiredLabel><input type="password" value={registerForm.password} onChange={(event) => setRegisterForm((prev) => ({ ...prev, password: event.target.value }))} required placeholder="至少 8 碼" className={inputClassName} /></div>
                     <div><RequiredLabel>確認密碼</RequiredLabel><input type="password" value={registerForm.confirmPassword} onChange={(event) => setRegisterForm((prev) => ({ ...prev, confirmPassword: event.target.value }))} required placeholder="請再次輸入密碼" className={inputClassName} /></div>
                   </div>
-                  <p className="rounded-2xl bg-zinc-50 px-4 py-3 text-xs leading-6 text-zinc-500">註冊完成後，可使用手機號碼或 Email 登入；若之後忘記密碼，也可透過 Email 重設。</p>
+                  <ul className="rounded-2xl bg-zinc-50 px-4 py-3 text-xs leading-6 text-zinc-500 list-decimal pl-8">
+                    <li>請會員填寫真實且正確的個人資料。</li>
+                    <li>您所提供的個人資料，我們將妥善保管並善盡保密義務。</li>
+                    <li>會員不得於網站上發布或傳送任何不實、威脅、不雅、不法或毀謗性內容。</li>
+                    <li>若會員有嚴重不當行為，本站有權停用或取消其會員帳號。</li>
+                    <li>註冊完成後，可使用手機號碼或 Email 登入；若忘記密碼，也可透過 Email 重設。</li>
+                  </ul>
                   <Button asChild disabled={isRegisterSubmitting} className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-all duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400">
                     <motion.button type="submit" whileTap={isRegisterSubmitting ? undefined : { scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}>{isRegisterSubmitting ? "建立帳號中..." : "建立帳號"}</motion.button>
                   </Button>
@@ -329,7 +335,7 @@ export const Navbar = () => {
           <Link to="/" className="flex items-center" onClick={closeAll}>
             <div className="relative mr-2 h-12 w-12 overflow-hidden rounded-full border-2 border-zinc-100 shadow-sm">
               <img
-                src="https://images.unsplash.com/photo-1555126634-323283e090fa?q=80&w=200&auto=format&fit=crop"
+                src="/goose-logo.svg"
                 alt="Goose Logo"
                 className="h-full w-full object-cover"
               />

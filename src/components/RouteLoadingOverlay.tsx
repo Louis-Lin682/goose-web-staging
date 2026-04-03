@@ -86,7 +86,7 @@ export const RouteLoadingOverlay = () => {
                 className="absolute inset-0 rounded-full border-2 border-zinc-200 border-t-orange-500"
               />
               <img
-                src="/image/goose-bg.png"
+                src="/goose-logo.svg"
                 alt="Goose logo"
                 className="h-14 w-14 rounded-full object-cover"
               />

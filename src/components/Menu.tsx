@@ -73,8 +73,8 @@ export const Menu = () => (
           whileTap={{ scale: 0.985, y: -4 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
         >
-          <Card className="group overflow-hidden rounded-[1.75rem] border-zinc-100 shadow-none transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
-            <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
+          <Card className="group overflow-hidden rounded-[1.75rem] bg-white border-zinc-200 shadow-none transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl">
+            <div className="relative aspect-[4/3] overflow-hidden bg-white">
               <img
                 src={menu.image}
                 alt={menu.name}
