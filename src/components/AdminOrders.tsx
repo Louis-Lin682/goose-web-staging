@@ -146,6 +146,234 @@ const isOrderInRange = (createdAt: string, startDate: string, endDate: string) =
   return orderDate >= startDate && orderDate <= endDate;
 };
 
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const buildPrintableOrderHtml = (
+  orders: OrderHistoryEntry[],
+  options: {
+    deliveryLabels: Record<string, string>;
+    orderStatusLabels: Record<OrderStatus, string>;
+    paymentLabels: Record<string, string>;
+    resolvePaymentStatusDisplay: (order: {
+      paymentMethod: string;
+      paymentStatus: "UNPAID" | "PAID" | "FAILED";
+    }) => { label: string };
+    variantLabels: Record<string, string>;
+  },
+) => {
+  const printedAt = formatDateTime(new Date().toISOString());
+
+  const orderSections = orders
+    .map((order) => {
+      const paymentStatusDisplay = options.resolvePaymentStatusDisplay(order);
+      const addressMarkup =
+        order.deliveryMethod === "pickup" && order.pickupStoreCode
+          ? `
+              <div class="info-row">
+                <span class="label">取貨門市</span>
+                <span class="value">${escapeHtml(
+                  `${order.pickupStoreName || "未填寫"}（${order.pickupStoreCode}）`,
+                )}</span>
+              </div>
+              ${
+                order.pickupStoreAddress
+                  ? `
+                    <div class="info-row">
+                      <span class="label">門市地址</span>
+                      <span class="value">${escapeHtml(order.pickupStoreAddress)}</span>
+                    </div>
+                  `
+                  : ""
+              }
+            `
+          : order.recipientAddress
+            ? `
+                <div class="info-row">
+                  <span class="label">收件地址</span>
+                  <span class="value">${escapeHtml(order.recipientAddress)}</span>
+                </div>
+              `
+            : "";
+
+      const itemsMarkup = order.items
+        .map(
+          (item) => `
+            <tr>
+              <td>${escapeHtml(item.itemName)}</td>
+              <td>${escapeHtml(options.variantLabels[item.variant] ?? item.variant)}</td>
+              <td>${item.quantity}</td>
+              <td>${formatCurrency(item.unitPrice)}</td>
+              <td>${formatCurrency(item.lineTotal)}</td>
+            </tr>
+          `,
+        )
+        .join("");
+
+      const noteMarkup = order.note
+        ? `
+            <div class="note-block">
+              <div class="note-title">訂單備註</div>
+              <div class="note-content">${escapeHtml(order.note)}</div>
+            </div>
+          `
+        : "";
+
+      return `
+        <section class="order-sheet">
+          <div class="sheet-header">
+            <div>
+              <div class="eyebrow">鵝作社 訂單單據</div>
+              <h1>${escapeHtml(order.orderNumber)}</h1>
+            </div>
+            <div class="status-group">
+              <div><span class="status-label">訂單狀態</span><strong>${escapeHtml(options.orderStatusLabels[order.status])}</strong></div>
+              <div><span class="status-label">付款狀態</span><strong>${escapeHtml(paymentStatusDisplay.label)}</strong></div>
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-card">
+              <div class="card-title">訂單資訊</div>
+              <div class="info-row">
+                <span class="label">下單時間</span>
+                <span class="value">${formatDateTime(order.createdAt)}</span>
+              </div>
+              ${
+                order.paidAt
+                  ? `
+                      <div class="info-row">
+                        <span class="label">付款時間</span>
+                        <span class="value">${formatDateTime(order.paidAt)}</span>
+                      </div>
+                    `
+                  : ""
+              }
+              <div class="info-row">
+                <span class="label">配送方式</span>
+                <span class="value">${escapeHtml(options.deliveryLabels[order.deliveryMethod] ?? order.deliveryMethod)}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">付款方式</span>
+                <span class="value">${escapeHtml(options.paymentLabels[order.paymentMethod] ?? order.paymentMethod)}</span>
+              </div>
+            </div>
+
+            <div class="info-card">
+              <div class="card-title">收件資訊</div>
+              <div class="info-row">
+                <span class="label">收件人</span>
+                <span class="value">${escapeHtml(order.recipientName)}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">聯絡電話</span>
+                <span class="value">${escapeHtml(order.recipientPhone)}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Email</span>
+                <span class="value">${escapeHtml(order.recipientEmail)}</span>
+              </div>
+              ${addressMarkup}
+            </div>
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>商品名稱</th>
+                <th>規格</th>
+                <th>數量</th>
+                <th>單價</th>
+                <th>小計</th>
+              </tr>
+            </thead>
+            <tbody>${itemsMarkup}</tbody>
+          </table>
+
+          <div class="totals">
+            <div class="total-row"><span>商品金額</span><strong>${formatCurrency(order.subtotal)}</strong></div>
+            <div class="total-row"><span>運費</span><strong>${formatCurrency(order.shippingFee)}</strong></div>
+            <div class="total-row"><span>貨到付款手續費</span><strong>${formatCurrency(order.codFee)}</strong></div>
+            <div class="total-row grand-total"><span>訂單總額</span><strong>${formatCurrency(order.totalAmount)}</strong></div>
+          </div>
+
+          ${noteMarkup}
+        </section>
+      `;
+    })
+    .join("");
+
+  return `<!doctype html>
+  <html lang="zh-Hant">
+    <head>
+      <meta charset="UTF-8" />
+      <title>鵝作社訂單列印</title>
+      <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+          color: #18181b;
+          background: #fff;
+          font-size: 12px;
+          line-height: 1.55;
+        }
+        .print-shell { width: 100%; max-width: 168mm; margin: 0 auto; }
+        .print-header { margin-bottom: 10mm; text-align: center; }
+        .print-header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.08em; }
+        .print-header p { margin: 4px 0 0; color: #71717a; }
+        .order-sheet { padding: 8mm 0; border-bottom: 1px dashed #d4d4d8; page-break-inside: avoid; }
+        .order-sheet:first-of-type { padding-top: 0; }
+        .order-sheet:last-of-type { border-bottom: none; padding-bottom: 0; }
+        .sheet-header { display: flex; justify-content: space-between; gap: 6mm; align-items: flex-start; margin-bottom: 5mm; }
+        .sheet-header h1 { margin: 2mm 0 0; font-size: 18px; font-weight: 800; }
+        .eyebrow { font-size: 10px; color: #ea580c; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; }
+        .status-group { display: grid; gap: 2mm; min-width: 34mm; text-align: right; }
+        .status-label, .label, .card-title {
+          color: #71717a;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .info-grid { display: grid; gap: 4mm; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 5mm; }
+        .info-card { border: 1px solid #e4e4e7; border-radius: 4mm; padding: 4mm; }
+        .card-title { margin-bottom: 2.5mm; }
+        .info-row { display: grid; gap: 1.2mm; margin-bottom: 2.2mm; }
+        .info-row:last-child { margin-bottom: 0; }
+        .value { font-size: 12px; font-weight: 600; color: #18181b; word-break: break-word; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; }
+        .items-table th, .items-table td { border-bottom: 1px solid #e4e4e7; padding: 2.6mm 2mm; text-align: left; vertical-align: top; }
+        .items-table th { color: #52525b; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .totals { margin-left: auto; width: min(100%, 68mm); }
+        .total-row { display: flex; justify-content: space-between; gap: 4mm; padding: 1.6mm 0; border-bottom: 1px solid #e4e4e7; }
+        .grand-total { font-size: 13px; font-weight: 800; }
+        .note-block { margin-top: 4mm; border-radius: 4mm; background: #f5f5f5; padding: 4mm; }
+        .note-title { color: #71717a; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1.5mm; }
+        .note-content { word-break: break-word; }
+      </style>
+    </head>
+    <body>
+      <main class="print-shell">
+        <header class="print-header">
+          <h1>鵝作社 訂單列印</h1>
+          <p>列印時間：${printedAt}</p>
+        </header>
+        ${orderSections}
+      </main>
+      <script>
+        window.addEventListener("load", () => { window.print(); });
+      </script>
+    </body>
+  </html>`;
+};
+
 export const AdminOrders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthReady, isAuthenticated, user } = useAuth();
@@ -167,6 +395,7 @@ export const AdminOrders = () => {
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const orderCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const focusedOrderNumber = searchParams.get("focusOrder")?.trim() ?? "";
 
@@ -315,10 +544,65 @@ export const AdminOrders = () => {
     [filteredOrders],
   );
 
+  const selectedOrders = useMemo(
+    () => filteredOrders.filter((order) => selectedOrderIds.includes(order.id)),
+    [filteredOrders, selectedOrderIds],
+  );
+
+  useEffect(() => {
+    setSelectedOrderIds((current) =>
+      current.filter((id) => filteredOrders.some((order) => order.id === id)),
+    );
+  }, [filteredOrders]);
+
   const exitFocusedOrderView = () => {
     setIsFocusedOrderView(false);
     setOrderNumberInput("");
     setAppliedOrderNumberFilter("");
+  };
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds((current) =>
+      current.includes(orderId)
+        ? current.filter((id) => id !== orderId)
+        : [...current, orderId],
+    );
+  };
+
+  const selectAllFilteredOrders = () => {
+    setSelectedOrderIds(filteredOrders.map((order) => order.id));
+  };
+
+  const clearSelectedOrders = () => {
+    setSelectedOrderIds([]);
+  };
+
+  const handlePrintSelectedOrders = () => {
+    if (selectedOrders.length === 0) {
+      setError("請先勾選至少一筆訂單再列印。");
+      return;
+    }
+
+    setError(null);
+
+    const printWindow = window.open("about:blank", "_blank");
+    if (!printWindow) {
+      setError("無法開啟列印視窗，請確認瀏覽器未封鎖彈出視窗。");
+      return;
+    }
+
+    const html = buildPrintableOrderHtml(selectedOrders, {
+      deliveryLabels,
+      orderStatusLabels,
+      paymentLabels,
+      resolvePaymentStatusDisplay,
+      variantLabels,
+    });
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
   };
 
   useEffect(() => {
@@ -617,6 +901,33 @@ export const AdminOrders = () => {
                   清除
                 </button>
               </div>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+                <button
+                  type="button"
+                  onClick={selectAllFilteredOrders}
+                  disabled={filteredOrders.length === 0}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  全選
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelectedOrders}
+                  disabled={selectedOrders.length === 0}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  取消全選
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintSelectedOrders}
+                  disabled={selectedOrders.length === 0}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                >
+                  列印已選訂單（{selectedOrders.length}）
+                </button>
+              </div>
             </div>
           </div>
 
@@ -660,57 +971,68 @@ export const AdminOrders = () => {
                   >
                     <div className="px-5 py-5 md:px-6">
                       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                        <div className="grid flex-1 gap-5 md:grid-cols-[1.2fr_0.9fr_0.9fr_0.8fr_0.8fr]">
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
-                              訂單編號
-                            </p>
-                            <p className="mt-2 text-lg font-black text-zinc-900">
-                              {order.orderNumber}
-                            </p>
-                            <p className="mt-2 text-sm text-zinc-500">
-                              {formatDateTime(order.createdAt)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                              訂單狀態
-                            </p>
-                            <div className="mt-2">
-                              <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${orderStatusBadgeStyles[order.status]}`}
-                              >
-                                {orderStatusLabels[order.status]}
-                              </span>
+                        <div className="flex flex-1 items-start gap-4">
+                          <label className="mt-1 inline-flex shrink-0 items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedOrderIds.includes(order.id)}
+                              onChange={() => toggleOrderSelection(order.id)}
+                              className="h-5 w-5 rounded border-zinc-300 accent-zinc-900"
+                              aria-label={`選取訂單 ${order.orderNumber}`}
+                            />
+                          </label>
+                          <div className="grid flex-1 gap-5 md:grid-cols-[1.2fr_0.9fr_0.9fr_0.8fr_0.8fr]">
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
+                                訂單編號
+                              </p>
+                              <p className="mt-2 text-lg font-black text-zinc-900">
+                                {order.orderNumber}
+                              </p>
+                              <p className="mt-2 text-sm text-zinc-500">
+                                {formatDateTime(order.createdAt)}
+                              </p>
                             </div>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                              付款狀態
-                            </p>
-                            <div className="mt-2">
-                              <span
-                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusDisplay.badgeClassName}`}
-                              >
-                                {paymentStatusDisplay.label}
-                              </span>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                訂單狀態
+                              </p>
+                              <div className="mt-2">
+                                <span
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${orderStatusBadgeStyles[order.status]}`}
+                                >
+                                  {orderStatusLabels[order.status]}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                              配送方式
-                            </p>
-                            <p className="mt-2 font-semibold text-zinc-900">
-                              {deliveryLabels[order.deliveryMethod] ?? order.deliveryMethod}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                              付款方式
-                            </p>
-                            <p className="mt-2 font-semibold text-zinc-900">
-                              {paymentLabels[order.paymentMethod] ?? order.paymentMethod}
-                            </p>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                付款狀態
+                              </p>
+                              <div className="mt-2">
+                                <span
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${paymentStatusDisplay.badgeClassName}`}
+                                >
+                                  {paymentStatusDisplay.label}
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                配送方式
+                              </p>
+                              <p className="mt-2 font-semibold text-zinc-900">
+                                {deliveryLabels[order.deliveryMethod] ?? order.deliveryMethod}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
+                                付款方式
+                              </p>
+                              <p className="mt-2 font-semibold text-zinc-900">
+                                {paymentLabels[order.paymentMethod] ?? order.paymentMethod}
+                              </p>
+                            </div>
                           </div>
                         </div>
 
