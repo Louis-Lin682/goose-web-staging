@@ -73,7 +73,7 @@ const NoticeModal = ({ onClose }: { onClose: () => void }) => {
           <section className="space-y-3"><p>1. 網路訂購須7天後才出貨，若要更改時間請在備註說明，實際到貨日須視宅急便當區配送狀況而定。</p><p>2. 門市自取訂單請留意手機與 Email，店家會主動聯繫取貨資訊。</p><p>3. 如遇節慶高峰或天候影響，配送與到貨時間可能調整，敬請見諒。</p><p>4. 離島地區不適用以上運費計算方式(請來電詢問)。</p></section>
           <section className="grid gap-6 rounded-[1.75rem] bg-zinc-50 px-5 py-5 text-sm text-zinc-600 md:grid-cols-2">
             <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Store</p><p className="mt-3 font-semibold text-zinc-900">門市地址</p><p>台中市南屯區永春東七路746-1號</p></div>
-            <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Contact</p><p className="mt-3 font-semibold text-zinc-900">訂購專線</p><a href="tel:04-2380-0255" className="text-orange-600">04-2380-0255</a><p className="mt-3 font-semibold text-zinc-900">取貨方式</p><p>黑貓低溫宅配 / 門市自取</p><p className="mt-3 font-semibold text-zinc-900">電子郵件</p><a href="mailto:christian7267@yahoo.com.tw" className="text-orange-600">christian7267@yahoo.com.tw</a></div>
+            <div><p className="text-xs font-black uppercase tracking-[0.28em] text-orange-600">Contact</p><p className="mt-3 font-semibold text-zinc-900">訂購專線</p><a href="tel:04-2380-0255" className="text-orange-600">04-2380-0255</a><p className="mt-3 font-semibold text-zinc-900">取貨方式</p><p>黑貓低溫宅配 / 門市自取</p><p className="mt-3 font-semibold text-zinc-900">電子郵件</p><a href="mailto:888@yahoo.com.tw" className="text-orange-600">888@yahoo.com.tw</a></div>
           </section>
         </div>
       </motion.div>

@@ -3,11 +3,14 @@ import { motion } from "framer-motion"
 
 export const Hero = () => (
     <section className="relative h-[80vh] w-full overflow-hidden bg-zinc-900">
-        <img 
-          src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2000&auto=format&fit=crop" 
-          className="absolute inset-0 w-full h-full object-cover opacity-80"
-          alt="Hero Background"
-        />
+        <picture>
+          <source media="(max-width: 767px)" srcSet="/banner/banner_goose_m.png" />
+          <img
+            src="/banner/banner_goose.png"
+            alt="Hero Background"
+            className="absolute inset-0 h-full w-full object-cover opacity-80"
+          />
+        </picture>
         <div className="relative z-10 flex h-full flex-col items-center justify-center text-white px-6">
           <motion.h1 
             initial={{ opacity: 0, scale: 0.9 }} 

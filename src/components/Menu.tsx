@@ -4,30 +4,30 @@ import { motion, type Variants } from "framer-motion";
 const MENU_ITEMS = [
   {
     id: 1,
-    name: "煙燻鵝肉禮盒",
-    price: 380,
-    description: "招牌煙燻鵝肉搭配細緻油香，適合節慶送禮與家庭聚餐。",
+    name: "招牌獅頭鵝與小菜",
+    // price: 380,
+    description: "修長的鵝頸,油香濃郁,不僅粗壯,更是肉感十足,頭頂肉冠正是老饕所追求的一口Q彈,經典人氣滷味,更是下酒美味",
     tag: "人氣推薦",
     image:
-      "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?q=80&w=800&auto=format&fit=crop",
+      "/products/鵝作社潮滷獅頭鵝肉1.jpg",
   },
   {
     id: 2,
-    name: "鵝油香蔥拌麵",
-    price: 180,
-    description: "以鵝油與香蔥提味，拌上彈牙麵條，香氣厚實又順口。",
-    tag: "門市熱賣",
+    name: "獅頭鵝肉拼盤",
+    // price: 180,
+    description: "精選獅頭鵝多部位拼盤,包含鵝肉,鵝翅,鵝爪與鵝胗,滷香濃郁,肉質彈嫩,想一次品嚐多種部位的最佳選擇",
+    tag: "門市精選",
     image:
-      "https://images.unsplash.com/photo-1543332164-6e82f355badc?q=80&w=800&auto=format&fit=crop",
+      "/products/鵝作社潮滷獅頭鵝肉_鵝肉拼盤1.jpg",
   },
   {
     id: 3,
-    name: "鵝肉丸湯",
-    price: 85,
-    description: "手工鵝肉丸搭配清甜高湯，口感扎實，適合搭配主食。",
-    tag: "暖胃首選",
+    name: "鵝肉飯套餐",
+    // price: 85,
+    description: "經典套餐內含滷白鵝肉、滷蛋、時蔬、筍絲，鵝香週邊小菜，以及每日例湯，一次滿足",
+    tag: "經典首選",
     image:
-      "https://images.unsplash.com/photo-1585032226651-759b368d7246?q=80&w=800&auto=format&fit=crop",
+      "/products/鵝作社潮滷獅頭鵝肉_鵝肉飯套餐1.jpg",
   },
 ];
 
@@ -87,7 +87,7 @@ export const Menu = () => (
             <CardHeader>
               <div className="mb-2 flex justify-between gap-4">
                 <CardTitle className="text-2xl font-bold tracking-tight">{menu.name}</CardTitle>
-                <span className="font-mono text-lg text-zinc-400">${menu.price}</span>
+                {/* <span className="font-mono text-lg text-zinc-400">${menu.price}</span> */}
               </div>
             </CardHeader>
             <CardContent>
