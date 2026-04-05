@@ -426,10 +426,12 @@ export const Checkout = () => {
 
       if (shouldClearPendingPayment) {
         clearPendingPayment();
+        setIsRedirectingToPayment(false);
         setPendingPayment(null);
         return;
       }
 
+      setIsRedirectingToPayment(false);
       setPendingPayment(nextPendingPayment);
 
       if (!nextPendingPayment) {
@@ -447,11 +449,13 @@ export const Checkout = () => {
     void syncPendingPayment();
 
     const handlePageShow = () => {
+      setIsRedirectingToPayment(false);
       void syncPendingPayment();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        setIsRedirectingToPayment(false);
         void syncPendingPayment();
       }
     };
@@ -467,6 +471,22 @@ export const Checkout = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isAuthenticated, isRedirectingToPayment, isSubmitting]);
+
+  useEffect(() => {
+    if (!isRedirectingToPayment) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        setIsRedirectingToPayment(false);
+      }
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isRedirectingToPayment]);
 
   const handleFieldChange = <K extends keyof CheckoutFormState>(
     field: K,
