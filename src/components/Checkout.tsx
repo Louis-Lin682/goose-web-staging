@@ -440,12 +440,10 @@ export const Checkout = () => {
         return;
       }
 
-      if (!isSubmitting && !isRedirectingToPayment) {
-        setSubmitError(null);
-        setSubmitMessage(
-          `偵測到尚未完成付款的訂單 ${nextPendingPayment.orderNumber}，可再次前往綠界完成付款。`,
-        );
-      }
+      setSubmitError(null);
+      setSubmitMessage(
+        `偵測到尚未完成付款的訂單 ${nextPendingPayment.orderNumber}，可再次前往綠界完成付款。`,
+      );
     };
 
     void syncPendingPayment();
@@ -474,7 +472,7 @@ export const Checkout = () => {
       window.removeEventListener("focus", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isAuthenticated, isRedirectingToPayment, isSubmitting]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isRedirectingToPayment) {
