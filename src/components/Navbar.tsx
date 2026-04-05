@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, type MouseEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Menu as MenuIcon, ShoppingCart, X } from "lucide-react";
@@ -28,7 +28,7 @@ const initialRegisterForm = (): RegisterFormState => ({ name: "", phone: "", ema
 
 const RequiredLabel = ({ children }: { children: string }) => <label className="mb-2 block text-sm font-semibold text-zinc-900">{children}<span className="ml-1 text-orange-600">*</span></label>;
 
-const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
+const LegacyLineAuthButton = ({ mode }: { mode: AuthMode }) => (
   <div className="mt-6 space-y-3">
     <div className="flex items-center gap-3"><div className="h-px flex-1 bg-zinc-200" /><span className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-400">或使用 LINE</span><div className="h-px flex-1 bg-zinc-200" /></div>
     <motion.a href={getLineAuthStartUrl(mode)} whileTap={{ scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }} className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#05b24b] active:scale-[0.97] active:bg-[#049c42]">
@@ -37,6 +37,56 @@ const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
     </motion.a>
     <p className="text-center text-xs leading-5 text-zinc-500">使用 LINE 授權即可快速完成登入或建立會員資料。</p>
     <p className="text-center text-[11px] leading-5 text-zinc-400 md:hidden">若手機內建瀏覽器無法正常跳轉，請改用 Safari 或 Chrome 開啟。</p>
+  </div>
+);
+
+const LineAuthButton = ({
+  mode,
+  isSubmitting,
+  onStart,
+}: {
+  mode: AuthMode;
+  isSubmitting: boolean;
+  onStart: (mode: AuthMode) => void;
+}) => (
+  <div className="mt-6 space-y-3">
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-zinc-200" />
+      <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-400">
+        或使用 LINE
+      </span>
+      <div className="h-px flex-1 bg-zinc-200" />
+    </div>
+    <motion.a
+      href={isSubmitting ? "#" : getLineAuthStartUrl(mode)}
+      whileTap={isSubmitting ? undefined : { scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        if (isSubmitting) {
+          event.preventDefault();
+          return;
+        }
+
+        onStart(mode);
+      }}
+      aria-disabled={isSubmitting}
+      className={`flex h-12 w-full items-center justify-center gap-3 rounded-2xl px-4 text-sm font-semibold text-white transition-all duration-200 ${
+        isSubmitting
+          ? "cursor-not-allowed bg-[#049c42] opacity-80"
+          : "bg-[#06C755] hover:bg-[#05b24b] active:scale-[0.97] active:bg-[#049c42]"
+      }`}
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[10px] font-black tracking-[0.16em] text-[#06C755]">
+        LINE
+      </span>
+      <span>{isSubmitting ? "跳轉中..." : mode === "login" ? "LINE 快速登入" : "LINE 快速註冊 / 登入"}</span>
+    </motion.a>
+    <p className="text-center text-xs leading-5 text-zinc-500">
+      使用 LINE 授權即可快速完成登入或建立會員資料。
+    </p>
+    <p className="text-center text-[11px] leading-5 text-zinc-400 md:hidden">
+      若手機內建瀏覽器無法正常跳轉，請改用 Safari 或 Chrome 開啟。
+    </p>
   </div>
 );
 
@@ -101,6 +151,7 @@ const AuthModal = ({
   const [registerForm, setRegisterForm] = useState<RegisterFormState>(initialRegisterForm);
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
+  const [lineAuthSubmittingMode, setLineAuthSubmittingMode] = useState<AuthMode | null>(null);
   const [authFeedback, setAuthFeedback] = useState<{ type: "error" | "success"; message: string } | null>(null);
 
   const resetForms = () => {
@@ -108,8 +159,37 @@ const AuthModal = ({
     setRegisterForm(initialRegisterForm());
     setIsLoginSubmitting(false);
     setIsRegisterSubmitting(false);
+    setLineAuthSubmittingMode(null);
     setAuthFeedback(null);
   };
+
+  useEffect(() => {
+    if (!lineAuthSubmittingMode) {
+      return;
+    }
+
+    const releaseLock = () => {
+      setLineAuthSubmittingMode(null);
+    };
+
+    const timeoutId = window.setTimeout(releaseLock, 6000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        releaseLock();
+      }
+    };
+
+    window.addEventListener("pageshow", releaseLock);
+    window.addEventListener("focus", releaseLock);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("pageshow", releaseLock);
+      window.removeEventListener("focus", releaseLock);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [lineAuthSubmittingMode]);
 
   const handleModeSwitch = (nextMode: AuthMode) => {
     if (nextMode === mode) return;
@@ -220,7 +300,11 @@ const AuthModal = ({
                   <Button asChild disabled={isLoginSubmitting} className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-all duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400">
                     <motion.button type="submit" whileTap={isLoginSubmitting ? undefined : { scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}>{isLoginSubmitting ? "登入中..." : "登入"}</motion.button>
                   </Button>
-                  <LineAuthButton mode={mode} />
+                  <LineAuthButton
+                    mode={mode}
+                    isSubmitting={lineAuthSubmittingMode === mode}
+                    onStart={setLineAuthSubmittingMode}
+                  />
                 </form>
               ) : (
                 <form className="space-y-4" onSubmit={handleRegisterSubmit}>
@@ -243,7 +327,11 @@ const AuthModal = ({
                   <Button asChild disabled={isRegisterSubmitting} className="mt-2 h-12 w-full rounded-2xl bg-zinc-900 text-sm text-white transition-all duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400">
                     <motion.button type="submit" whileTap={isRegisterSubmitting ? undefined : { scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }}>{isRegisterSubmitting ? "建立帳號中..." : "建立帳號"}</motion.button>
                   </Button>
-                  <LineAuthButton mode={mode} />
+                  <LineAuthButton
+                    mode={mode}
+                    isSubmitting={lineAuthSubmittingMode === mode}
+                    onStart={setLineAuthSubmittingMode}
+                  />
                 </form>
               )}
             </div>
