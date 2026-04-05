@@ -77,6 +77,17 @@ export const SessionTimeoutManager = () => {
       return;
     }
 
+    if (!isAdminArea) {
+      clearLastActivity();
+      clearSessionAuthGrace();
+      isHandlingTimeoutRef.current = false;
+      hasShownTimeoutModalRef.current = false;
+      hasCompletedInitialAuthRef.current = false;
+      lastKeepAliveRef.current = 0;
+      setIsTimeoutModalOpen(false);
+      return;
+    }
+
     if (!isAuthenticated) {
       clearLastActivity();
       clearSessionAuthGrace();
@@ -318,9 +329,9 @@ export const SessionTimeoutManager = () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(SESSION_TIMEOUT_EVENT, handleForcedTimeout);
     };
-  }, [isAuthReady, isAuthenticated, signOut]);
+  }, [isAdminArea, isAuthReady, isAuthenticated, signOut]);
 
-  if (!isTimeoutModalOpen) {
+  if (!isAdminArea || !isTimeoutModalOpen) {
     return null;
   }
 
