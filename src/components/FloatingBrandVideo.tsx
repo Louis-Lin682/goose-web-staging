@@ -9,6 +9,7 @@ export const FloatingBrandVideo = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [hasManuallyClosed, setHasManuallyClosed] = useState(false);
+  const shouldHideVideoTrigger = location.pathname === "/checkout";
 
   useEffect(() => {
     if (location.pathname === "/origin" && !hasManuallyClosed) {
@@ -39,6 +40,10 @@ export const FloatingBrandVideo = () => {
     setHasManuallyClosed(true);
     setIsExpanded(false);
   };
+
+  if (shouldHideVideoTrigger) {
+    return null;
+  }
 
   return (
     <div className="pointer-events-none fixed bottom-20 right-4 z-[85] md:right-6">
