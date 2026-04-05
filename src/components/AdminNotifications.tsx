@@ -93,66 +93,13 @@ export const AdminNotifications = () => {
     <main className="min-h-screen bg-white px-6 pb-24 pt-40 lg:h-full lg:overflow-hidden lg:pb-10 lg:pt-10">
       <div className="mx-auto max-w-6xl lg:flex lg:h-full lg:flex-col">
         <div className="shrink-0">
-        <div className="mb-8 flex flex-col gap-4 border-b border-zinc-100 pb-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.4em] text-orange-600">
-              Admin
-            </p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-zinc-900 md:text-5xl">
-              新訂單通知
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-              這裡會集中顯示最新訂單提醒，未讀和已讀通知會分開呈現，方便你快速處理新單。</p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 rounded-3xl bg-zinc-50 p-4">
-            <div className="min-w-[96px] text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                總數
-              </p>
-              <p className="mt-2 text-2xl font-black text-zinc-900">
-                {notifications.length}
-              </p>
-            </div>
-            <div className="min-w-[96px] text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                未讀
-              </p>
-              <p className="mt-2 text-2xl font-black text-zinc-900">{unreadCount}</p>
-            </div>
-            <div className="min-w-[96px] text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-400">
-                已處理              </p>
-              <p className="mt-2 text-2xl font-black text-zinc-900">{readCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-
-        </div>
-
-        <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
-
-        <div className="mb-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
-                  Latest
-                </p>
-                <h2 className="mt-3 text-2xl font-black text-zinc-900">
-                  {latestNotification?.title ?? "目前沒有未讀訂單"}
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-zinc-500">
-                  {latestNotification?.message ?? "目前沒有未讀的新訂單通知，新的訂單進來時會顯示在這裡。"}
-                </p>
-              </div>
-              <button
+        <section className="mb-8 rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <p class="text-xs font-black uppercase tracking-[0.4em] text-orange-600">Admin</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-2xl font-black text-zinc-900">新訂單通知</h2>
+                <button
                   type="button"
                   onClick={() =>
                     void (isSoundEnabled
@@ -169,47 +116,69 @@ export const AdminNotifications = () => {
                       ? "通知音效已開啟，點擊可關閉"
                       : "通知音效已關閉，點擊可開啟"
                   }
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ${
+                  className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
                     isSoundEnabled
-                      ? "border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
-                      : "border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                      ? "border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+                      : "border border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
                   }`}
                 >
                   {isSoundEnabled ? (
-                    <Bell className="h-6 w-6" />
+                    <Bell className="h-5 w-5" />
                   ) : (
-                    <BellOff className="h-6 w-6" />
+                    <BellOff className="h-5 w-5" />
                   )}
                 </button>
-            </div>
-          </section>
-
-          <section className="rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
-                  Action
-                </p>
-                <h2 className="mt-3 text-2xl font-black text-zinc-900">通知操作</h2>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700">
-                  <CheckCheck className="mr-2 h-4 w-4" />
+                <div className="inline-flex min-h-9 items-center justify-center rounded-full border border-zinc-200 px-3 text-[11px] font-semibold text-zinc-700">
+                  <CheckCheck className="mr-1.5 h-3.5 w-3.5" />
                   點進訂單後自動移出未讀
                 </div>
               </div>
+              <div className="mt-3 flex items-end gap-3">
+                <span className="text-4xl font-black leading-none text-zinc-900">
+                  {groupedNotifications.unread.length}
+                </span>
+                <span className="pb-1 text-sm text-zinc-500">未讀通知</span>
+              </div>
+              <p className="mt-3 text-sm leading-7 text-zinc-500">
+                {latestNotification?.message ??
+                  "目前沒有未讀的新訂單通知，新的訂單進來時會顯示在這裡。"}
+              </p>
             </div>
 
-            <div className="mt-6">
-              <div className="rounded-2xl bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
-                <p className="font-semibold text-zinc-900">未讀通知</p>
-                <p className="mt-2">目前共有 {unreadCount} 筆新的未讀訂單提醒。</p>
+            <div className="grid grid-cols-3 gap-2 rounded-3xl bg-zinc-50 p-3 xl:min-w-[260px]">
+              <div className="min-w-0 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                  總數
+                </p>
+                <p className="mt-1.5 text-xl font-black text-zinc-900">
+                  {notifications.length}
+                </p>
+              </div>
+              <div className="min-w-0 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                  未讀
+                </p>
+                <p className="mt-1.5 text-xl font-black text-zinc-900">{unreadCount}</p>
+              </div>
+              <div className="min-w-0 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                  已處理
+                </p>
+                <p className="mt-1.5 text-xl font-black text-zinc-900">{readCount}</p>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
+
+        {error && (
+          <div className="mb-6 rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
         </div>
 
+        <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
         {isLoading ? (
           <div className="rounded-[2rem] border border-zinc-100 bg-zinc-50 px-8 py-16 text-center text-sm text-zinc-500">
             通知載入中...
@@ -222,21 +191,18 @@ export const AdminNotifications = () => {
             </p>
           </div>
         ) : (
-          <section>
-            <div className="mb-4 flex items-center justify-between gap-4">
+          <section className="rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between gap-4 border-b border-zinc-100 pb-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
-                  New
+                <h3 className="text-2xl font-black text-zinc-900">未讀訂單列表</h3>
+                <p className="mt-2 text-sm text-zinc-500">
+                  目前共有 {groupedNotifications.unread.length} 筆待處理的新訂單提醒。
                 </p>
-                <h2 className="mt-2 text-2xl font-black text-zinc-900">新訂單通知</h2>
               </div>
-              <span className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-full bg-zinc-900 px-2 text-sm font-bold text-white">
-                {groupedNotifications.unread.length}
-              </span>
             </div>
 
             {groupedNotifications.unread.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-zinc-200 bg-zinc-50 px-8 py-12 text-center text-sm text-zinc-500">
+              <div className="rounded-[1.75rem] border border-dashed border-zinc-200 bg-zinc-50 px-8 py-12 text-center text-sm text-zinc-500">
                 目前沒有未讀訂單。
               </div>
             ) : (
@@ -244,9 +210,9 @@ export const AdminNotifications = () => {
                 {groupedNotifications.unread.map((notification) => (
                   <article
                     key={notification.id}
-                    className="rounded-[2rem] border border-orange-200 bg-orange-50/40 px-5 py-5 shadow-sm md:px-6"
+                    className="rounded-[1.75rem] border border-orange-200 bg-orange-50/40 px-5 py-5 shadow-sm md:px-6"
                   >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex flex-row items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <p className="text-lg font-black text-zinc-900">
