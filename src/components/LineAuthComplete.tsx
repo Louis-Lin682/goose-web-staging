@@ -15,25 +15,39 @@ export const LineAuthComplete = () => {
   useEffect(() => {
     if (explicitStatus === "error") {
       setErrorMessage(
-        searchParams.get("message") ?? "LINE 登入失敗，請稍後再試一次。",
+        searchParams.get("message") ?? "LINE 登入失敗，請稍後再試。",
       );
       return;
     }
 
     let isMounted = true;
 
+    const wait = (ms: number) =>
+      new Promise((resolve) => window.setTimeout(resolve, ms));
+
     const hydrateLineUser = async () => {
       try {
-        const response = await getCurrentUser();
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          const response = await getCurrentUser();
 
-        if (!isMounted || !response.user) {
-          throw new Error("LINE 登入尚未完成，請重新再試一次。");
+          if (!isMounted) {
+            return;
+          }
+
+          if (response.user) {
+            signIn(response.user);
+            navigate(response.user.isAdmin ? "/admin/notifications" : nextPath, {
+              replace: true,
+            });
+            return;
+          }
+
+          if (attempt < 3) {
+            await wait(1000);
+          }
         }
 
-        signIn(response.user);
-        navigate(response.user.isAdmin ? "/admin/notifications" : nextPath, {
-          replace: true,
-        });
+        throw new Error("LINE 註冊尚未完成，請重新嘗試一次。");
       } catch (error) {
         if (!isMounted) {
           return;
@@ -42,7 +56,7 @@ export const LineAuthComplete = () => {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "LINE 登入失敗，請稍後再試一次。",
+            : "LINE 登入失敗，請稍後再試。",
         );
       }
     };
@@ -84,7 +98,7 @@ export const LineAuthComplete = () => {
               正在完成 LINE 登入
             </h1>
             <p className="mt-4 text-sm leading-7 text-zinc-600">
-              我們正在替你同步登入狀態，這裡會自動跳轉，不需要再手動操作。
+              正在同步您的會員資料與登入狀態，若頁面稍慢屬正常情況，請稍候片刻。
             </p>
           </>
         )}
