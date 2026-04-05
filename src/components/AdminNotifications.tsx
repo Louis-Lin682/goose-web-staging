@@ -96,7 +96,7 @@ export const AdminNotifications = () => {
         <section className="mb-8 rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1">
-              <p class="text-xs font-black uppercase tracking-[0.4em] text-orange-600">Admin</p>
+              <p className="text-xs font-black uppercase tracking-[0.4em] text-orange-600">Admin</p>
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-2xl font-black text-zinc-900">新訂單通知</h2>
                 <button
