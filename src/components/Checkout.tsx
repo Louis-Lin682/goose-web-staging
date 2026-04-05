@@ -426,11 +426,13 @@ export const Checkout = () => {
 
       if (shouldClearPendingPayment) {
         clearPendingPayment();
+        setIsSubmitting(false);
         setIsRedirectingToPayment(false);
         setPendingPayment(null);
         return;
       }
 
+      setIsSubmitting(false);
       setIsRedirectingToPayment(false);
       setPendingPayment(nextPendingPayment);
 
@@ -449,12 +451,14 @@ export const Checkout = () => {
     void syncPendingPayment();
 
     const handlePageShow = () => {
+      setIsSubmitting(false);
       setIsRedirectingToPayment(false);
       void syncPendingPayment();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        setIsSubmitting(false);
         setIsRedirectingToPayment(false);
         void syncPendingPayment();
       }
@@ -479,6 +483,7 @@ export const Checkout = () => {
 
     const timeoutId = window.setTimeout(() => {
       if (document.visibilityState === "visible") {
+        setIsSubmitting(false);
         setIsRedirectingToPayment(false);
       }
     }, 4000);
