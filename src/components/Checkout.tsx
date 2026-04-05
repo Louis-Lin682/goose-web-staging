@@ -374,6 +374,7 @@ export const Checkout = () => {
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [touchedFields, setTouchedFields] = useState<CheckoutTouchedFields>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirectingToPayment, setIsRedirectingToPayment] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
   const [pendingPayment, setPendingPayment] = useState(() => getPendingPayment());
   const [form, setForm] = useState<CheckoutFormState>(() => buildInitialForm());
@@ -435,10 +436,12 @@ export const Checkout = () => {
         return;
       }
 
-      setSubmitError(null);
-      setSubmitMessage(
-        `偵測到尚未完成付款的訂單 ${nextPendingPayment.orderNumber}，可再次前往綠界完成付款。`,
-      );
+      if (!isSubmitting && !isRedirectingToPayment) {
+        setSubmitError(null);
+        setSubmitMessage(
+          `偵測到尚未完成付款的訂單 ${nextPendingPayment.orderNumber}，可再次前往綠界完成付款。`,
+        );
+      }
     };
 
     void syncPendingPayment();
@@ -463,7 +466,7 @@ export const Checkout = () => {
       window.removeEventListener("focus", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isRedirectingToPayment, isSubmitting]);
 
   const handleFieldChange = <K extends keyof CheckoutFormState>(
     field: K,
@@ -504,6 +507,7 @@ export const Checkout = () => {
     }
 
     setIsSubmitting(true);
+    setIsRedirectingToPayment(true);
     setSubmitError(null);
     setSubmitMessage(`正在重新導向至綠界付款頁，訂單編號 ${pendingPayment.orderNumber}...`);
 
@@ -511,6 +515,7 @@ export const Checkout = () => {
       const checkoutResponse = await createEcpayCheckout(pendingPayment.orderId);
       submitEcpayCheckout(checkoutResponse.action, checkoutResponse.fields);
     } catch (error) {
+      setIsRedirectingToPayment(false);
       setSubmitMessage(null);
       setSubmitError(resolveCheckoutErrorMessage(error));
     } finally {
@@ -586,6 +591,8 @@ export const Checkout = () => {
       return;
     }
 
+    let hasSubmittedPaymentRedirect = false;
+
     try {
       const response = await createOrder(payload);
 
@@ -596,26 +603,35 @@ export const Checkout = () => {
         };
 
         savePendingPayment(nextPendingPayment);
-        setPendingPayment(nextPendingPayment);
+        setIsRedirectingToPayment(true);
         setSubmitMessage("訂單建立成功，正在前往綠界付款...");
         const checkoutResponse = await createEcpayCheckout(response.orderId);
+        hasSubmittedPaymentRedirect = true;
         submitEcpayCheckout(checkoutResponse.action, checkoutResponse.fields);
         return;
       }
 
       clearPendingPayment();
       setPendingPayment(null);
+      setIsRedirectingToPayment(false);
       clearCart();
       setCompletedOrderNumber(response.orderNumber);
       setSubmitMessage("訂單建立成功，我們會儘快為你安排後續處理。");
     } catch (error) {
+      setIsRedirectingToPayment(false);
       const message = resolveCheckoutErrorMessage(error);
       const nextFieldErrors = resolveCheckoutFieldErrors(message, form.deliveryMethod);
+
+      if (form.paymentMethod === "online") {
+        setPendingPayment(getPendingPayment());
+      }
 
       setFieldErrors(nextFieldErrors);
       setSubmitError(Object.keys(nextFieldErrors).length === 0 ? message : null);
     } finally {
-      setIsSubmitting(false);
+      if (!hasSubmittedPaymentRedirect) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -1000,7 +1016,7 @@ export const Checkout = () => {
               </div>
             )}
 
-            {pendingPayment && form.paymentMethod === "online" && (
+            {pendingPayment && form.paymentMethod === "online" && !isRedirectingToPayment && (
               <div className="rounded-3xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700">
                 目前有一筆尚未完成付款的訂單
                 <span className="mx-1 font-semibold text-zinc-900">
@@ -1021,7 +1037,9 @@ export const Checkout = () => {
                 disabled={isSubmitting || hasPendingPaymentValidationErrors}
                 className="h-12 rounded-full bg-zinc-900 px-6 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
               >
-                {isSubmitting
+                {isRedirectingToPayment
+                  ? "正在前往綠界..."
+                  : isSubmitting
                   ? "送出中..."
                   : pendingPayment && form.paymentMethod === "online"
                     ? "再次前往付款"
