@@ -67,7 +67,11 @@ const LineAuthButton = ({
           return;
         }
 
+        event.preventDefault();
         onStart(mode);
+        window.setTimeout(() => {
+          window.location.assign(getLineAuthStartUrl(mode));
+        }, 0);
       }}
       aria-disabled={isSubmitting}
       className={`flex h-12 w-full items-center justify-center gap-3 rounded-2xl px-4 text-sm font-semibold text-white transition-all duration-200 ${
