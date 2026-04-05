@@ -177,13 +177,18 @@ export const AdminLogin = () => {
               請輸入管理員電話、Email 或帳號與密碼。成功登入後會直接進入後台通知頁。
             </p>
 
-            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <form className="mt-8 space-y-5" autoComplete="off" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-zinc-900">
                   電話、Email 或帳號
                 </label>
                 <input
                   type="text"
+                  name="admin-login-identifier"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={form.identifier}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, identifier: event.target.value }))
@@ -200,6 +205,8 @@ export const AdminLogin = () => {
                 </label>
                 <input
                   type="password"
+                  name="admin-login-password"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, password: event.target.value }))

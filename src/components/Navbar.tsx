@@ -31,11 +31,12 @@ const RequiredLabel = ({ children }: { children: string }) => <label className="
 const LineAuthButton = ({ mode }: { mode: AuthMode }) => (
   <div className="mt-6 space-y-3">
     <div className="flex items-center gap-3"><div className="h-px flex-1 bg-zinc-200" /><span className="text-[11px] font-bold uppercase tracking-[0.28em] text-zinc-400">或使用 LINE</span><div className="h-px flex-1 bg-zinc-200" /></div>
-    <motion.button type="button" onClick={() => window.location.assign(getLineAuthStartUrl(mode))} whileTap={{ scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }} className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#05b24b] active:scale-[0.97] active:bg-[#049c42]">
+    <motion.a href={getLineAuthStartUrl(mode)} whileTap={{ scale: 0.985 }} transition={{ type: "spring", stiffness: 520, damping: 32, mass: 0.7 }} className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#05b24b] active:scale-[0.97] active:bg-[#049c42]">
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[10px] font-black tracking-[0.16em] text-[#06C755]">LINE</span>
       <span>{mode === "login" ? "LINE 快速登入" : "LINE 快速註冊 / 登入"}</span>
-    </motion.button>
+    </motion.a>
     <p className="text-center text-xs leading-5 text-zinc-500">使用 LINE 授權即可快速完成登入或建立會員資料。</p>
+    <p className="text-center text-[11px] leading-5 text-zinc-400 md:hidden">若手機內建瀏覽器無法正常跳轉，請改用 Safari 或 Chrome 開啟。</p>
   </div>
 );
 
@@ -209,9 +210,9 @@ const AuthModal = ({
             {authFeedback && <div className={`mb-4 shrink-0 rounded-2xl px-4 py-3 text-sm ${authFeedback.type === "success" ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-red-200 bg-red-50 text-red-600"}`} aria-live="polite">{authFeedback.message}</div>}
             <div className="min-h-0 flex-1 overflow-y-auto">
               {mode === "login" ? (
-                <form className="space-y-4" onSubmit={handleLoginSubmit}>
-                  <div><RequiredLabel>手機號碼或 Email</RequiredLabel><input type="text" value={loginForm.identifier} onChange={(event) => setLoginForm((prev) => ({ ...prev, identifier: event.target.value }))} required placeholder="請輸入手機號碼或 Email" className={inputClassName} /></div>
-                  <div><RequiredLabel>密碼</RequiredLabel><input type="password" value={loginForm.password} onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))} required placeholder="請輸入至少 8 碼密碼" className={inputClassName} /></div>
+                <form className="space-y-4" autoComplete="off" onSubmit={handleLoginSubmit}>
+                  <div><RequiredLabel>手機號碼或 Email</RequiredLabel><input type="text" name="storefront-login-identifier" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} value={loginForm.identifier} onChange={(event) => setLoginForm((prev) => ({ ...prev, identifier: event.target.value }))} required placeholder="請輸入手機號碼或 Email" className={inputClassName} /></div>
+                  <div><RequiredLabel>密碼</RequiredLabel><input type="password" name="storefront-login-password" autoComplete="new-password" value={loginForm.password} onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))} required placeholder="請輸入至少 8 碼密碼" className={inputClassName} /></div>
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center gap-2 text-zinc-500"><input type="checkbox" checked={loginForm.remember} onChange={(event) => setLoginForm((prev) => ({ ...prev, remember: event.target.checked }))} className="h-4 w-4 rounded border-zinc-300" />記住我</label>
                     <button type="button" className="font-semibold text-orange-600" onClick={() => { handleClose(); navigate("/forgot-password"); }}>忘記密碼？</button>
