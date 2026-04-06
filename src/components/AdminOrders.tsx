@@ -225,7 +225,10 @@ const getRefundBlockedReason = (order: OrderHistoryEntry) => {
     return "這筆訂單已無可退款金額。";
   }
 
-  if (!order.items.some((item) => getRemainingRefundableQuantity(item) > 0)) {
+  if (
+    !order.items.some((item) => getRemainingRefundableQuantity(item) > 0) &&
+    getRemainingRefundableShippingFee(order) <= 0
+  ) {
     return "這筆訂單已無可退款商品數量。";
   }
 
