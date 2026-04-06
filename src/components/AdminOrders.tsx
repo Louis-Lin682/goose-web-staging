@@ -167,6 +167,19 @@ const getDisplayedRefundedAmount = (order: OrderHistoryEntry) => {
   );
 };
 
+const getDisplayedRefundedItemAmount = (order: OrderHistoryEntry) =>
+  order.items.reduce(
+    (sum, item) => sum + (item.refundedQuantity ?? 0) * item.unitPrice,
+    0,
+  );
+
+const getRemainingRefundableShippingFee = (order: OrderHistoryEntry) =>
+  Math.max(
+    order.shippingFee -
+      Math.max(getDisplayedRefundedAmount(order) - getDisplayedRefundedItemAmount(order), 0),
+    0,
+  );
+
 const getRemainingRefundAmount = (order: OrderHistoryEntry) =>
   Math.max(order.totalAmount - getDisplayedRefundedAmount(order), 0);
 
@@ -482,6 +495,7 @@ export const AdminOrders = () => {
   const [refundMode, setRefundMode] = useState<RefundMode>("FULL");
   const [refundReason, setRefundReason] = useState("");
   const [refundDraftItems, setRefundDraftItems] = useState<RefundDraftItem[]>([]);
+  const [refundShippingFee, setRefundShippingFee] = useState(false);
   const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const orderCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const focusedOrderNumber = searchParams.get("focusOrder")?.trim() ?? "";
@@ -655,7 +669,7 @@ export const AdminOrders = () => {
       return getRemainingRefundAmount(selectedRefundOrder);
     }
 
-    return selectedRefundOrder.items.reduce((sum, item) => {
+    const itemsAmount = selectedRefundOrder.items.reduce((sum, item) => {
       const draftItem = refundDraftItems.find(
         (entry) => entry.orderItemId === item.id,
       );
@@ -666,7 +680,12 @@ export const AdminOrders = () => {
 
       return sum + item.unitPrice * draftItem.quantity;
     }, 0);
-  }, [refundDraftItems, refundMode, selectedRefundOrder]);
+
+    return (
+      itemsAmount +
+      (refundShippingFee ? getRemainingRefundableShippingFee(selectedRefundOrder) : 0)
+    );
+  }, [refundDraftItems, refundMode, refundShippingFee, selectedRefundOrder]);
 
   useEffect(() => {
     setSelectedOrderIds((current) =>
@@ -680,6 +699,7 @@ export const AdminOrders = () => {
       setRefundMode("FULL");
       setRefundReason("");
       setRefundDraftItems([]);
+      setRefundShippingFee(false);
       return;
     }
 
@@ -720,6 +740,7 @@ export const AdminOrders = () => {
     setIsRefundDialogOpen(false);
     setRefundMode("FULL");
     setRefundReason("");
+    setRefundShippingFee(false);
     if (selectedRefundOrder) {
       setRefundDraftItems(
         selectedRefundOrder.items.map((item) => ({
@@ -748,6 +769,7 @@ export const AdminOrders = () => {
     setError(null);
     setRefundMode("FULL");
     setRefundReason("");
+    setRefundShippingFee(false);
     setRefundDraftItems(
       selectedSingleOrder.items.map((item) => ({
         orderItemId: item.id,
@@ -807,6 +829,7 @@ export const AdminOrders = () => {
       payload = {
         mode: "FULL",
         reason: refundReason.trim() || undefined,
+        refundShippingFee: true,
       };
     } else {
       const selectedItems = selectedRefundOrder.items
@@ -835,14 +858,15 @@ export const AdminOrders = () => {
           } => item !== null,
         );
 
-      if (selectedItems.length === 0) {
-        setError("部分刷退至少要選擇一項商品與退款數量。");
+      if (selectedItems.length === 0 && !refundShippingFee) {
+        setError("部分刷退至少要選擇退款商品，或勾選退運費。");
         return;
       }
 
       payload = {
         mode: "PARTIAL",
         reason: refundReason.trim() || undefined,
+        refundShippingFee,
         items: selectedItems,
       };
     }
@@ -1595,8 +1619,8 @@ export const AdminOrders = () => {
                 </button>
               </div>
 
-              <div className="mt-6 space-y-3">
-                {selectedRefundOrder.items.map((item) => {
+                <div className="mt-6 space-y-3">
+                  {selectedRefundOrder.items.map((item) => {
                   const remainingQuantity = getRemainingRefundableQuantity(item);
                   const draftQuantity =
                     refundDraftItems.find((entry) => entry.orderItemId === item.id)
@@ -1658,13 +1682,35 @@ export const AdminOrders = () => {
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-              <div className="mt-6">
-                <label className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                {refundMode === "PARTIAL" && getRemainingRefundableShippingFee(selectedRefundOrder) > 0 && (
+                  <div className="mt-4 rounded-[1.5rem] border border-orange-200 bg-orange-50 px-4 py-4">
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={refundShippingFee}
+                        onChange={(event) => setRefundShippingFee(event.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-zinc-300 text-orange-500 focus:ring-orange-400"
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">一併退還剩餘運費</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                          剩餘可退運費：
+                          <span className="ml-1 font-semibold text-orange-600">
+                            {formatCurrency(getRemainingRefundableShippingFee(selectedRefundOrder))}
+                          </span>
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <label className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
                   刷退原因
                 </label>
                 <textarea
@@ -1696,10 +1742,15 @@ export const AdminOrders = () => {
                     </p>
                   </div>
                 </div>
-                <p className="mt-4 text-sm leading-6 text-white/70">
-                  送出後會直接向綠界申請退款。請再次確認訂單、退款數量與金額皆正確。
-                </p>
-              </div>
+                  <p className="mt-4 text-sm leading-6 text-white/70">
+                    送出後會直接向綠界申請退款。請再次確認訂單、退款數量與金額皆正確。
+                  </p>
+                  {refundMode === "PARTIAL" && refundShippingFee && (
+                    <p className="mt-2 text-xs leading-5 text-orange-200">
+                      本次部分刷退將包含剩餘運費。
+                    </p>
+                  )}
+                </div>
 
             </div>
 

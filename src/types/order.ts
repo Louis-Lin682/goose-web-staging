@@ -127,6 +127,7 @@ export type RefundOrderItemPayload = {
 export type RefundOrderPayload = {
   mode: RefundRequestMode;
   reason?: string;
+  refundShippingFee?: boolean;
   items?: RefundOrderItemPayload[];
 };
 
