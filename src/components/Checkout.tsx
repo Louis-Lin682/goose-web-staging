@@ -491,6 +491,14 @@ export const Checkout = () => {
     };
   }, [isRedirectingToPayment]);
 
+  useEffect(() => {
+    if (!completedOrderNumber) {
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [completedOrderNumber]);
+
   const handleFieldChange = <K extends keyof CheckoutFormState>(
     field: K,
     value: CheckoutFormState[K],
