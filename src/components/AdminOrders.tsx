@@ -4,10 +4,20 @@ import { useSearchParams } from "react-router-dom";
 import { AdminActionLoadingOverlay } from "./AdminActionLoadingOverlay";
 import { useAuth } from "../context/useAuth";
 import { useAdminNotifications } from "../context/useAdminNotifications";
-import { getAdminOrders, updateOrderStatus } from "../lib/orders";
-import type { OrderHistoryEntry, OrderStatus } from "../types/order";
+import { getAdminOrders, refundAdminOrder, updateOrderStatus } from "../lib/orders";
+import type {
+  OrderHistoryEntry,
+  OrderStatus,
+  PaymentStatus,
+  RefundOrderPayload,
+} from "../types/order";
 
 type OrderDatePreset = "today" | "this-month" | "last-month" | "custom";
+type RefundMode = "FULL" | "PARTIAL";
+type RefundDraftItem = {
+  orderItemId: string;
+  quantity: number;
+};
 
 const MIN_ACTION_LOADING_MS = 650;
 const REFRESH_INTERVAL_MS = 10 * 1000;
@@ -61,12 +71,16 @@ const orderStatusLabels: Record<OrderStatus, string> = {
   SHIPPED: "已出貨",
   COMPLETED: "已完成",
   CANCELLED: "已取消",
+  REFUND_PROCESSING: "退款處理中",
+  REFUNDED: "退款成功",
 };
 
-const paymentStatusLabels: Record<"UNPAID" | "PAID" | "FAILED", string> = {
+const paymentStatusLabels: Record<PaymentStatus, string> = {
   UNPAID: "未付款",
   PAID: "已付款",
   FAILED: "付款失敗",
+  PARTIALLY_REFUNDED: "部分退款",
+  REFUNDED: "已退款",
 };
 
 const statusOptions: OrderStatus[] = [
@@ -76,6 +90,8 @@ const statusOptions: OrderStatus[] = [
   "SHIPPED",
   "COMPLETED",
   "CANCELLED",
+  "REFUND_PROCESSING",
+  "REFUNDED",
 ];
 
 const datePresetLabels: Record<Exclude<OrderDatePreset, "custom">, string> = {
@@ -109,29 +125,26 @@ const orderStatusBadgeStyles: Record<OrderStatus, string> = {
   SHIPPED: "bg-violet-100 text-violet-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
   CANCELLED: "bg-zinc-200 text-zinc-700",
+  REFUND_PROCESSING: "bg-orange-100 text-orange-700",
+  REFUNDED: "bg-rose-100 text-rose-700",
 };
 
-const paymentStatusBadgeStyles: Record<"UNPAID" | "PAID" | "FAILED", string> = {
+const paymentStatusBadgeStyles: Record<PaymentStatus, string> = {
   UNPAID: "bg-zinc-100 text-zinc-700",
   PAID: "bg-emerald-100 text-emerald-700",
   FAILED: "bg-red-100 text-red-700",
+  PARTIALLY_REFUNDED: "bg-orange-100 text-orange-700",
+  REFUNDED: "bg-rose-100 text-rose-700",
 };
 
 const resolvePaymentStatusDisplay = (order: {
   paymentMethod: string;
-  paymentStatus: "UNPAID" | "PAID" | "FAILED";
+  paymentStatus: PaymentStatus;
 }) => {
   if (order.paymentMethod === "online") {
-    if (order.paymentStatus === "PAID") {
-      return {
-        label: paymentStatusLabels.PAID,
-        badgeClassName: paymentStatusBadgeStyles.PAID,
-      };
-    }
-
     return {
-      label: paymentStatusLabels.FAILED,
-      badgeClassName: paymentStatusBadgeStyles.FAILED,
+      label: paymentStatusLabels[order.paymentStatus],
+      badgeClassName: paymentStatusBadgeStyles[order.paymentStatus],
     };
   }
 
@@ -139,6 +152,40 @@ const resolvePaymentStatusDisplay = (order: {
     label: paymentStatusLabels[order.paymentStatus],
     badgeClassName: paymentStatusBadgeStyles[order.paymentStatus],
   };
+};
+
+const getRemainingRefundAmount = (order: OrderHistoryEntry) =>
+  Math.max(order.totalAmount - order.refundedAmount, 0);
+
+const getRemainingRefundableQuantity = (item: OrderHistoryEntry["items"][number]) =>
+  Math.max(item.quantity - item.refundedQuantity, 0);
+
+const isRefundEligible = (order: OrderHistoryEntry) => {
+  if (order.paymentMethod !== "online") {
+    return false;
+  }
+
+  if (
+    order.paymentStatus !== "PAID" &&
+    order.paymentStatus !== "PARTIALLY_REFUNDED"
+  ) {
+    return false;
+  }
+
+  if (
+    order.status === "SHIPPED" ||
+    order.status === "COMPLETED" ||
+    order.status === "CANCELLED" ||
+    order.status === "REFUND_PROCESSING" ||
+    order.status === "REFUNDED"
+  ) {
+    return false;
+  }
+
+  return (
+    getRemainingRefundAmount(order) > 0 &&
+    order.items.some((item) => getRemainingRefundableQuantity(item) > 0)
+  );
 };
 
 const isOrderInRange = (createdAt: string, startDate: string, endDate: string) => {
@@ -162,7 +209,7 @@ const buildPrintableOrderHtml = (
     paymentLabels: Record<string, string>;
     resolvePaymentStatusDisplay: (order: {
       paymentMethod: string;
-      paymentStatus: "UNPAID" | "PAID" | "FAILED";
+      paymentStatus: PaymentStatus;
     }) => { label: string };
     variantLabels: Record<string, string>;
   },
@@ -396,6 +443,11 @@ export const AdminOrders = () => {
   const [appliedEndDate, setAppliedEndDate] = useState("");
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [refundMode, setRefundMode] = useState<RefundMode>("FULL");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundDraftItems, setRefundDraftItems] = useState<RefundDraftItem[]>([]);
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
   const orderCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const focusedOrderNumber = searchParams.get("focusOrder")?.trim() ?? "";
 
@@ -539,6 +591,8 @@ export const AdminOrders = () => {
           SHIPPED: 0,
           COMPLETED: 0,
           CANCELLED: 0,
+          REFUND_PROCESSING: 0,
+          REFUNDED: 0,
         },
       ),
     [filteredOrders],
@@ -549,11 +603,55 @@ export const AdminOrders = () => {
     [filteredOrders, selectedOrderIds],
   );
 
+  const selectedRefundOrder =
+    selectedOrders.length === 1 && isRefundEligible(selectedOrders[0])
+      ? selectedOrders[0]
+      : null;
+
+  const refundPreviewAmount = useMemo(() => {
+    if (!selectedRefundOrder) {
+      return 0;
+    }
+
+    if (refundMode === "FULL") {
+      return getRemainingRefundAmount(selectedRefundOrder);
+    }
+
+    return selectedRefundOrder.items.reduce((sum, item) => {
+      const draftItem = refundDraftItems.find(
+        (entry) => entry.orderItemId === item.id,
+      );
+
+      if (!draftItem || draftItem.quantity <= 0) {
+        return sum;
+      }
+
+      return sum + item.unitPrice * draftItem.quantity;
+    }, 0);
+  }, [refundDraftItems, refundMode, selectedRefundOrder]);
+
   useEffect(() => {
     setSelectedOrderIds((current) =>
       current.filter((id) => filteredOrders.some((order) => order.id === id)),
     );
   }, [filteredOrders]);
+
+  useEffect(() => {
+    if (!selectedRefundOrder) {
+      setIsRefundDialogOpen(false);
+      setRefundMode("FULL");
+      setRefundReason("");
+      setRefundDraftItems([]);
+      return;
+    }
+
+    setRefundDraftItems(
+      selectedRefundOrder.items.map((item) => ({
+        orderItemId: item.id,
+        quantity: 0,
+      })),
+    );
+  }, [selectedRefundOrder]);
 
   const exitFocusedOrderView = () => {
     setIsFocusedOrderView(false);
@@ -575,6 +673,50 @@ export const AdminOrders = () => {
 
   const clearSelectedOrders = () => {
     setSelectedOrderIds([]);
+  };
+
+  const closeRefundDialog = () => {
+    setIsRefundDialogOpen(false);
+    setRefundMode("FULL");
+    setRefundReason("");
+    if (selectedRefundOrder) {
+      setRefundDraftItems(
+        selectedRefundOrder.items.map((item) => ({
+          orderItemId: item.id,
+          quantity: 0,
+        })),
+      );
+    } else {
+      setRefundDraftItems([]);
+    }
+  };
+
+  const openRefundDialog = () => {
+    if (!selectedRefundOrder) {
+      setError("請先勾選一筆可刷退的線上付款訂單。");
+      return;
+    }
+
+    setError(null);
+    setRefundMode("FULL");
+    setRefundReason("");
+    setRefundDraftItems(
+      selectedRefundOrder.items.map((item) => ({
+        orderItemId: item.id,
+        quantity: 0,
+      })),
+    );
+    setIsRefundDialogOpen(true);
+  };
+
+  const updateRefundDraftQuantity = (orderItemId: string, nextQuantity: number) => {
+    setRefundDraftItems((current) =>
+      current.map((item) =>
+        item.orderItemId === orderItemId
+          ? { ...item, quantity: Math.max(nextQuantity, 0) }
+          : item,
+      ),
+    );
   };
 
   const handlePrintSelectedOrders = () => {
@@ -603,6 +745,82 @@ export const AdminOrders = () => {
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
+  };
+
+  const handleSubmitRefund = async () => {
+    if (!selectedRefundOrder) {
+      setError("請先勾選一筆可刷退的線上付款訂單。");
+      return;
+    }
+
+    let payload: RefundOrderPayload;
+
+    if (refundMode === "FULL") {
+      payload = {
+        mode: "FULL",
+        reason: refundReason.trim() || undefined,
+      };
+    } else {
+      const selectedItems = selectedRefundOrder.items
+        .map((item) => {
+          const draft = refundDraftItems.find(
+            (entry) => entry.orderItemId === item.id,
+          );
+          const remainingQuantity = getRemainingRefundableQuantity(item);
+          const quantity = Math.min(draft?.quantity ?? 0, remainingQuantity);
+
+          if (quantity <= 0) {
+            return null;
+          }
+
+          return {
+            orderItemId: item.id,
+            quantity,
+          };
+        })
+        .filter(
+          (
+            item,
+          ): item is {
+            orderItemId: string;
+            quantity: number;
+          } => item !== null,
+        );
+
+      if (selectedItems.length === 0) {
+        setError("部分刷退至少要選擇一項商品與退款數量。");
+        return;
+      }
+
+      payload = {
+        mode: "PARTIAL",
+        reason: refundReason.trim() || undefined,
+        items: selectedItems,
+      };
+    }
+
+    setRefundingOrderId(selectedRefundOrder.id);
+    setError(null);
+
+    try {
+      await Promise.all([
+        refundAdminOrder(selectedRefundOrder.id, payload),
+        wait(MIN_ACTION_LOADING_MS),
+      ]);
+
+      const refreshed = await getAdminOrders();
+      setOrders(refreshed.orders);
+      setSelectedOrderIds([]);
+      closeRefundDialog();
+    } catch (refundError) {
+      setError(
+        refundError instanceof Error
+          ? refundError.message
+          : "刷退失敗，請稍後再試一次。",
+      );
+    } finally {
+      setRefundingOrderId(null);
+    }
   };
 
   useEffect(() => {
@@ -766,10 +984,11 @@ export const AdminOrders = () => {
     return null;
   }
 
-  return (
-    <main className="min-h-screen bg-white px-6 pb-24 pt-40 lg:h-full lg:overflow-hidden lg:pb-10 lg:pt-10">
-      {updatingOrderId && <AdminActionLoadingOverlay title="更新訂單狀態中..." />}
-      {isFilterLoading && <AdminActionLoadingOverlay title="篩選中..." />}
+    return (
+      <main className="min-h-screen bg-white px-6 pb-24 pt-40 lg:h-full lg:overflow-hidden lg:pb-10 lg:pt-10">
+        {updatingOrderId && <AdminActionLoadingOverlay title="更新訂單狀態中..." />}
+        {refundingOrderId && <AdminActionLoadingOverlay title="刷退處理中..." />}
+        {isFilterLoading && <AdminActionLoadingOverlay title="篩選中..." />}
 
       <div className="mx-auto max-w-6xl lg:flex lg:h-full lg:flex-col">
         <div className="shrink-0">
@@ -786,16 +1005,18 @@ export const AdminOrders = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-6 gap-1.5 rounded-[1.5rem] bg-zinc-50 p-2.5">
-              {[
-                ["待確認", filteredStatusCounts.PENDING],
-                ["已付款待處理", filteredStatusCounts.PAID],
-                ["處理中", filteredStatusCounts.PROCESSING],
-                ["已出貨", filteredStatusCounts.SHIPPED],
-                ["已完成", filteredStatusCounts.COMPLETED],
-                ["已取消", filteredStatusCounts.CANCELLED],
-              ].map(([label, value]) => (
-                <div key={label} className="min-w-0 text-center">
+              <div className="grid grid-cols-4 gap-1.5 rounded-[1.5rem] bg-zinc-50 p-2.5 lg:grid-cols-8">
+                {[
+                  ["待確認", filteredStatusCounts.PENDING],
+                  ["已付款待處理", filteredStatusCounts.PAID],
+                  ["處理中", filteredStatusCounts.PROCESSING],
+                  ["已出貨", filteredStatusCounts.SHIPPED],
+                  ["已完成", filteredStatusCounts.COMPLETED],
+                  ["已取消", filteredStatusCounts.CANCELLED],
+                  ["退款中", filteredStatusCounts.REFUND_PROCESSING],
+                  ["退款成功", filteredStatusCounts.REFUNDED],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0 text-center">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-400">
                     {label}
                   </p>
@@ -926,6 +1147,14 @@ export const AdminOrders = () => {
                   className="inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-3 text-[10px] font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
                 >
                   列印已選訂單（{selectedOrders.length}）
+                </button>
+                <button
+                  type="button"
+                  onClick={openRefundDialog}
+                  disabled={!selectedRefundOrder}
+                  className="inline-flex h-8 items-center justify-center rounded-full bg-rose-600 px-3 text-[10px] font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                >
+                  刷退（限單筆）
                 </button>
               </div>
             </div>
@@ -1092,6 +1321,11 @@ export const AdminOrders = () => {
                                         {variantLabels[item.variant] ?? item.variant} x{" "}
                                         {item.quantity}
                                       </p>
+                                      {item.refundedQuantity > 0 && (
+                                        <p className="mt-2 text-xs font-semibold text-rose-600">
+                                          已退款數量：{item.refundedQuantity}
+                                        </p>
+                                      )}
                                     </div>
                                     <p className="text-sm font-semibold text-zinc-900">
                                       {formatCurrency(item.lineTotal)}
@@ -1177,6 +1411,12 @@ export const AdminOrders = () => {
                                   <span>貨到付款手續費</span>
                                   <span>{formatCurrency(order.codFee)}</span>
                                 </div>
+                                {order.refundedAmount > 0 && (
+                                  <div className="flex items-center justify-between text-rose-200">
+                                    <span>已退款金額</span>
+                                    <span>{formatCurrency(order.refundedAmount)}</span>
+                                  </div>
+                                )}
                                 <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">
                                   <span>訂單總額</span>
                                   <span>{formatCurrency(order.totalAmount)}</span>
@@ -1186,6 +1426,16 @@ export const AdminOrders = () => {
                               {order.note && (
                                 <div className="mt-5 rounded-2xl bg-white/5 px-4 py-4 text-sm leading-6 text-white/75">
                                   備註：{order.note}
+                                </div>
+                              )}
+                              {order.refundReason && (
+                                <div className="mt-4 rounded-2xl bg-white/5 px-4 py-4 text-sm leading-6 text-rose-100">
+                                  刷退原因：{order.refundReason}
+                                  {order.refundedAt && (
+                                    <div className="mt-2 text-xs text-rose-100/80">
+                                      刷退時間：{formatDateTime(order.refundedAt)}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1205,6 +1455,219 @@ export const AdminOrders = () => {
           </div>
         </div>
       </div>
+
+      {isRefundDialogOpen && selectedRefundOrder && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_120px_rgba(0,0,0,0.18)]">
+            <div className="border-b border-zinc-100 px-6 py-5">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
+                Refund
+              </p>
+              <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-black text-zinc-900">訂單刷退</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    訂單 {selectedRefundOrder.orderNumber}，可用剩餘退款金額{" "}
+                    <span className="font-semibold text-zinc-900">
+                      {formatCurrency(getRemainingRefundAmount(selectedRefundOrder))}
+                    </span>
+                    。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeRefundDialog}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-6 py-6">
+              <div className="grid gap-4 rounded-[1.5rem] bg-zinc-50 p-4 md:grid-cols-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                    付款狀態
+                  </p>
+                  <p className="mt-2 font-semibold text-zinc-900">
+                    {resolvePaymentStatusDisplay(selectedRefundOrder).label}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                    訂單總額
+                  </p>
+                  <p className="mt-2 font-semibold text-zinc-900">
+                    {formatCurrency(selectedRefundOrder.totalAmount)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                    已退款
+                  </p>
+                  <p className="mt-2 font-semibold text-zinc-900">
+                    {formatCurrency(selectedRefundOrder.refundedAmount)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                    收件人
+                  </p>
+                  <p className="mt-2 font-semibold text-zinc-900">
+                    {selectedRefundOrder.recipientName}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRefundMode("FULL")}
+                  className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${
+                    refundMode === "FULL"
+                      ? "bg-zinc-900 text-white"
+                      : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                >
+                  全額刷退
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRefundMode("PARTIAL")}
+                  className={`inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition-colors ${
+                    refundMode === "PARTIAL"
+                      ? "bg-zinc-900 text-white"
+                      : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                >
+                  部分刷退
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {selectedRefundOrder.items.map((item) => {
+                  const remainingQuantity = getRemainingRefundableQuantity(item);
+                  const draftQuantity =
+                    refundDraftItems.find((entry) => entry.orderItemId === item.id)
+                      ?.quantity ?? 0;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-[1.5rem] border border-zinc-100 bg-white px-4 py-4"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            {item.itemName}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {item.itemSubCategory} |{" "}
+                            {variantLabels[item.variant] ?? item.variant}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-600">
+                              訂購數量 {item.quantity}
+                            </span>
+                            <span className="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-600">
+                              已退款 {item.refundedQuantity}
+                            </span>
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-600">
+                              可退 {remainingQuantity}
+                            </span>
+                            <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-600">
+                              單價 {formatCurrency(item.unitPrice)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {refundMode === "PARTIAL" && (
+                          <div className="w-full md:w-36">
+                            <label className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                              退款數量
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={remainingQuantity}
+                              value={draftQuantity}
+                              onChange={(event) =>
+                                updateRefundDraftQuantity(
+                                  item.id,
+                                  Number(event.target.value || 0),
+                                )
+                              }
+                              disabled={remainingQuantity === 0}
+                              className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6">
+                <label className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
+                  刷退原因
+                </label>
+                <textarea
+                  value={refundReason}
+                  onChange={(event) => setRefundReason(event.target.value)}
+                  rows={4}
+                  maxLength={300}
+                  placeholder="例如：包裝受損、品項錯誤、客戶取消部分品項..."
+                  className="mt-2 w-full rounded-[1.5rem] border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-orange-400"
+                />
+              </div>
+
+              <div className="mt-6 rounded-[1.5rem] bg-zinc-950 px-5 py-5 text-white">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/45">
+                      退款模式
+                    </p>
+                    <p className="mt-2 text-lg font-black">
+                      {refundMode === "FULL" ? "全額刷退" : "部分刷退"}
+                    </p>
+                  </div>
+                  <div className="text-left md:text-right">
+                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/45">
+                      預計刷退金額
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-orange-300">
+                      {formatCurrency(refundPreviewAmount)}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-white/70">
+                  送出後會直接向綠界申請退款。請再次確認訂單、退款數量與金額皆正確。
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeRefundDialog}
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSubmitRefund()}
+                  disabled={refundPreviewAmount <= 0 || Boolean(refundingOrderId)}
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-rose-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                >
+                  確認送出刷退
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

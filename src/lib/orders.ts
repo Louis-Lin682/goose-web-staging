@@ -6,6 +6,8 @@ import type {
   CreateOrderResponse,
   EcpayCheckoutResponse,
   OrderHistoryResponse,
+  RefundOrderPayload,
+  RefundOrderResponse,
   SimulateEcpayPaidResponse,
   UpdateOrderStatusPayload,
   UpdateOrderStatusResponse,
@@ -126,6 +128,16 @@ export const updateOrderStatus = async (
 ): Promise<UpdateOrderStatusResponse> => {
   return apiRequest<UpdateOrderStatusResponse>(`/admin/orders/${orderId}/status`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const refundAdminOrder = async (
+  orderId: string,
+  payload: RefundOrderPayload,
+): Promise<RefundOrderResponse> => {
+  return apiRequest<RefundOrderResponse>(`/admin/orders/${orderId}/refund`, {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 };

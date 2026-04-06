@@ -52,7 +52,16 @@ export type OrderStatus =
   | "PROCESSING"
   | "SHIPPED"
   | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUND_PROCESSING"
+  | "REFUNDED";
+
+export type PaymentStatus =
+  | "UNPAID"
+  | "PAID"
+  | "FAILED"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED";
 
 export type OrderHistoryItem = {
   id: string;
@@ -62,6 +71,7 @@ export type OrderHistoryItem = {
   variant: string;
   unitPrice: number;
   quantity: number;
+  refundedQuantity: number;
   lineTotal: number;
 };
 
@@ -69,7 +79,7 @@ export type OrderHistoryEntry = {
   id: string;
   orderNumber: string;
   status: OrderStatus;
-  paymentStatus: "UNPAID" | "PAID" | "FAILED";
+  paymentStatus: PaymentStatus;
   paymentProvider: "ECPAY" | null;
   deliveryMethod: string;
   paymentMethod: string;
@@ -82,6 +92,9 @@ export type OrderHistoryEntry = {
   pickupStoreAddress: string | null;
   note: string | null;
   subtotal: number;
+  refundedAmount: number;
+  refundReason: string | null;
+  refundedAt: string | null;
   shippingFee: number;
   codFee: number;
   totalAmount: number;
@@ -102,6 +115,28 @@ export type UpdateOrderStatusResponse = {
   message: string;
   orderId: string;
   status: OrderStatus;
+};
+
+export type RefundRequestMode = "FULL" | "PARTIAL";
+
+export type RefundOrderItemPayload = {
+  orderItemId: string;
+  quantity: number;
+};
+
+export type RefundOrderPayload = {
+  mode: RefundRequestMode;
+  reason?: string;
+  items?: RefundOrderItemPayload[];
+};
+
+export type RefundOrderResponse = {
+  message: string;
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  refundedAmount: number;
 };
 
 export type AdminProductStatsPreset =

@@ -3,7 +3,11 @@ import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { getOrderHistory } from "../lib/orders";
-import type { OrderHistoryEntry, OrderStatus } from "../types/order";
+import type {
+  OrderHistoryEntry,
+  OrderStatus,
+  PaymentStatus,
+} from "../types/order";
 
 const REFRESH_INTERVAL_MS = 30 * 1000;
 
@@ -25,12 +29,16 @@ const orderStatusLabels: Record<OrderStatus, string> = {
   SHIPPED: "已出貨",
   COMPLETED: "已完成",
   CANCELLED: "已取消",
+  REFUND_PROCESSING: "退款處理中",
+  REFUNDED: "退款成功",
 };
 
-const paymentStatusLabels: Record<"UNPAID" | "PAID" | "FAILED", string> = {
+const paymentStatusLabels: Record<PaymentStatus, string> = {
   UNPAID: "未付款",
   PAID: "已付款",
   FAILED: "付款失敗",
+  PARTIALLY_REFUNDED: "部分退款",
+  REFUNDED: "已退款",
 };
 
 const deliveryLabels: Record<string, string> = {
@@ -58,29 +66,26 @@ const orderStatusBadgeStyles: Record<OrderStatus, string> = {
   SHIPPED: "bg-violet-100 text-violet-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
   CANCELLED: "bg-zinc-200 text-zinc-700",
+  REFUND_PROCESSING: "bg-orange-100 text-orange-700",
+  REFUNDED: "bg-rose-100 text-rose-700",
 };
 
-const paymentStatusBadgeStyles: Record<"UNPAID" | "PAID" | "FAILED", string> = {
+const paymentStatusBadgeStyles: Record<PaymentStatus, string> = {
   UNPAID: "bg-zinc-100 text-zinc-700",
   PAID: "bg-emerald-100 text-emerald-700",
   FAILED: "bg-red-100 text-red-700",
+  PARTIALLY_REFUNDED: "bg-orange-100 text-orange-700",
+  REFUNDED: "bg-rose-100 text-rose-700",
 };
 
 const resolvePaymentStatusDisplay = (order: {
   paymentMethod: string;
-  paymentStatus: "UNPAID" | "PAID" | "FAILED";
+  paymentStatus: PaymentStatus;
 }) => {
   if (order.paymentMethod === "online") {
-    if (order.paymentStatus === "PAID") {
-      return {
-        label: paymentStatusLabels.PAID,
-        badgeClassName: paymentStatusBadgeStyles.PAID,
-      };
-    }
-
     return {
-      label: paymentStatusLabels.FAILED,
-      badgeClassName: paymentStatusBadgeStyles.FAILED,
+      label: paymentStatusLabels[order.paymentStatus],
+      badgeClassName: paymentStatusBadgeStyles[order.paymentStatus],
     };
   }
 
@@ -423,6 +428,11 @@ export const Orders = () => {
                                       {variantLabels[item.variant] ?? item.variant} x{" "}
                                       {item.quantity}
                                     </p>
+                                    {item.refundedQuantity > 0 && (
+                                      <p className="mt-2 text-xs font-semibold text-rose-600">
+                                        已退款數量：{item.refundedQuantity}
+                                      </p>
+                                    )}
                                   </div>
                                   <p className="text-sm font-semibold text-zinc-900">
                                     {formatCurrency(item.lineTotal)}
@@ -524,6 +534,12 @@ export const Orders = () => {
                                 <span>貨到付款手續費</span>
                                 <span>{formatCurrency(order.codFee)}</span>
                               </div>
+                              {order.refundedAmount > 0 && (
+                                <div className="flex items-center justify-between text-rose-200">
+                                  <span>已退款金額</span>
+                                  <span>{formatCurrency(order.refundedAmount)}</span>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">
                                 <span>訂單總額</span>
                                 <span>{formatCurrency(order.totalAmount)}</span>
@@ -533,6 +549,16 @@ export const Orders = () => {
                             {order.note && (
                               <div className="mt-5 rounded-2xl bg-white/5 px-4 py-4 text-sm leading-6 text-white/75">
                                 備註：{order.note}
+                              </div>
+                            )}
+                            {order.refundReason && (
+                              <div className="mt-4 rounded-2xl bg-white/5 px-4 py-4 text-sm leading-6 text-rose-100">
+                                刷退原因：{order.refundReason}
+                                {order.refundedAt && (
+                                  <div className="mt-2 text-xs text-rose-100/80">
+                                    刷退時間：{formatDate(order.refundedAt)}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
