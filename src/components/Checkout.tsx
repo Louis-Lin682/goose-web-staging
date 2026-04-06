@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState, type FormEvent } from "react";
 import { CircleAlert } from "lucide-react";
 import { useEffect } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AuthRequiredPrompt } from "./AuthRequiredPrompt";
@@ -369,6 +370,7 @@ const OrderSummary = ({
 export const Checkout = () => {
   const { cart, totalItems, clearCart } = useCart();
   const { isAuthenticated, isAuthReady } = useAuth();
+  const successPanelRef = useRef<HTMLDivElement | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
@@ -496,7 +498,17 @@ export const Checkout = () => {
       return;
     }
 
-    window.scrollTo({ top: 0, behavior: "auto" });
+    window.requestAnimationFrame(() => {
+      const panel = successPanelRef.current;
+
+      if (!panel) {
+        window.scrollTo({ top: 0, behavior: "auto" });
+        return;
+      }
+
+      const top = panel.getBoundingClientRect().top + window.scrollY - 112;
+      window.scrollTo({ top: Math.max(top, 0), behavior: "auto" });
+    });
   }, [completedOrderNumber]);
 
   const handleFieldChange = <K extends keyof CheckoutFormState>(
@@ -669,7 +681,10 @@ export const Checkout = () => {
   if (completedOrderNumber) {
     return (
       <main className="min-h-screen bg-white px-6 pb-24 pt-40">
-        <div className="mx-auto max-w-4xl rounded-[2rem] border border-emerald-200 bg-emerald-50 px-8 py-16 text-center">
+        <div
+          ref={successPanelRef}
+          className="mx-auto max-w-4xl rounded-[2rem] border border-emerald-200 bg-emerald-50 px-8 py-16 text-center"
+        >
           <p className="text-xs font-black uppercase tracking-[0.4em] text-emerald-600">
             Order Success
           </p>
