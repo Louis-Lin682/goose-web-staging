@@ -155,37 +155,56 @@ const resolvePaymentStatusDisplay = (order: {
 };
 
 const getRemainingRefundAmount = (order: OrderHistoryEntry) =>
-  Math.max(order.totalAmount - order.refundedAmount, 0);
+  Math.max(order.totalAmount - (order.refundedAmount ?? 0), 0);
 
 const getRemainingRefundableQuantity = (item: OrderHistoryEntry["items"][number]) =>
-  Math.max(item.quantity - item.refundedQuantity, 0);
+  Math.max(item.quantity - (item.refundedQuantity ?? 0), 0);
 
-const isRefundEligible = (order: OrderHistoryEntry) => {
+const getRefundBlockedReason = (order: OrderHistoryEntry) => {
   if (order.paymentMethod !== "online") {
-    return false;
+    return "只有線上付款訂單才能刷退。";
   }
 
   if (
     order.paymentStatus !== "PAID" &&
     order.paymentStatus !== "PARTIALLY_REFUNDED"
   ) {
-    return false;
+    return "只有已付款或部分退款的訂單才能刷退。";
   }
 
-  if (
-    order.status === "SHIPPED" ||
-    order.status === "COMPLETED" ||
-    order.status === "CANCELLED" ||
-    order.status === "REFUND_PROCESSING" ||
-    order.status === "REFUNDED"
-  ) {
-    return false;
+  if (order.status === "SHIPPED") {
+    return "已出貨訂單不可刷退。";
   }
 
-  return (
-    getRemainingRefundAmount(order) > 0 &&
-    order.items.some((item) => getRemainingRefundableQuantity(item) > 0)
-  );
+  if (order.status === "COMPLETED") {
+    return "已完成訂單不可刷退。";
+  }
+
+  if (order.status === "CANCELLED") {
+    return "已取消訂單不可刷退。";
+  }
+
+  if (order.status === "REFUND_PROCESSING") {
+    return "這筆訂單目前正在退款處理中。";
+  }
+
+  if (order.status === "REFUNDED") {
+    return "這筆訂單已退款完成。";
+  }
+
+  if (getRemainingRefundAmount(order) <= 0) {
+    return "這筆訂單已無可退款金額。";
+  }
+
+  if (!order.items.some((item) => getRemainingRefundableQuantity(item) > 0)) {
+    return "這筆訂單已無可退款商品數量。";
+  }
+
+  return null;
+};
+
+const isRefundEligible = (order: OrderHistoryEntry) => {
+  return getRefundBlockedReason(order) === null;
 };
 
 const isOrderInRange = (createdAt: string, startDate: string, endDate: string) => {
@@ -603,9 +622,12 @@ export const AdminOrders = () => {
     [filteredOrders, selectedOrderIds],
   );
 
+  const selectedSingleOrder =
+    selectedOrders.length === 1 ? selectedOrders[0] : null;
+
   const selectedRefundOrder =
-    selectedOrders.length === 1 && isRefundEligible(selectedOrders[0])
-      ? selectedOrders[0]
+    selectedSingleOrder && isRefundEligible(selectedSingleOrder)
+      ? selectedSingleOrder
       : null;
 
   const refundPreviewAmount = useMemo(() => {
@@ -692,8 +714,15 @@ export const AdminOrders = () => {
   };
 
   const openRefundDialog = () => {
-    if (!selectedRefundOrder) {
-      setError("請先勾選一筆可刷退的線上付款訂單。");
+    if (!selectedSingleOrder) {
+      setError("請先勾選一筆訂單再進行刷退。");
+      return;
+    }
+
+    const blockedReason = getRefundBlockedReason(selectedSingleOrder);
+
+    if (blockedReason) {
+      setError(blockedReason);
       return;
     }
 
@@ -701,7 +730,7 @@ export const AdminOrders = () => {
     setRefundMode("FULL");
     setRefundReason("");
     setRefundDraftItems(
-      selectedRefundOrder.items.map((item) => ({
+      selectedSingleOrder.items.map((item) => ({
         orderItemId: item.id,
         quantity: 0,
       })),
@@ -1148,13 +1177,13 @@ export const AdminOrders = () => {
                 >
                   列印已選訂單（{selectedOrders.length}）
                 </button>
-                <button
-                  type="button"
-                  onClick={openRefundDialog}
-                  disabled={!selectedRefundOrder}
-                  className="inline-flex h-8 items-center justify-center rounded-full bg-rose-600 px-3 text-[10px] font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
-                >
-                  刷退（限單筆）
+                  <button
+                    type="button"
+                    onClick={openRefundDialog}
+                    disabled={!selectedSingleOrder}
+                    className="inline-flex h-8 items-center justify-center rounded-full bg-rose-600 px-3 text-[10px] font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
+                  >
+                    刷退（限單筆）
                 </button>
               </div>
             </div>
