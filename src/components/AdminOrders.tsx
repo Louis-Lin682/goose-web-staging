@@ -682,6 +682,7 @@ export const AdminOrders = () => {
   };
 
   const toggleOrderSelection = (orderId: string) => {
+    setError(null);
     setSelectedOrderIds((current) =>
       current.includes(orderId)
         ? current.filter((id) => id !== orderId)
@@ -690,10 +691,12 @@ export const AdminOrders = () => {
   };
 
   const selectAllFilteredOrders = () => {
+    setError(null);
     setSelectedOrderIds(filteredOrders.map((order) => order.id));
   };
 
   const clearSelectedOrders = () => {
+    setError(null);
     setSelectedOrderIds([]);
   };
 
