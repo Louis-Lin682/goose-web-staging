@@ -157,6 +157,9 @@ const resolvePaymentStatusDisplay = (order: {
 const getRemainingRefundAmount = (order: OrderHistoryEntry) =>
   Math.max(order.totalAmount - (order.refundedAmount ?? 0), 0);
 
+const getNetReceivedAmount = (order: OrderHistoryEntry) =>
+  Math.max(order.totalAmount - (order.refundedAmount ?? 0), 0);
+
 const getRemainingRefundableQuantity = (item: OrderHistoryEntry["items"][number]) =>
   Math.max(item.quantity - (item.refundedQuantity ?? 0), 0);
 
@@ -1443,15 +1446,17 @@ export const AdminOrders = () => {
                                   <span>貨到付款手續費</span>
                                   <span>{formatCurrency(order.codFee)}</span>
                                 </div>
-                                {order.refundedAmount > 0 && (
+                                {(order.refundedAmount ?? 0) > 0 && (
                                   <div className="flex items-center justify-between text-rose-200">
                                     <span>已退款金額</span>
-                                    <span>{formatCurrency(order.refundedAmount)}</span>
+                                    <span>{formatCurrency(order.refundedAmount ?? 0)}</span>
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">
-                                  <span>訂單總額</span>
-                                  <span>{formatCurrency(order.totalAmount)}</span>
+                                  <span>
+                                    {(order.refundedAmount ?? 0) > 0 ? "實收金額" : "訂單總額"}
+                                  </span>
+                                  <span>{formatCurrency(getNetReceivedAmount(order))}</span>
                                 </div>
                               </div>
 
@@ -1489,8 +1494,8 @@ export const AdminOrders = () => {
       </div>
 
       {isRefundDialogOpen && selectedRefundOrder && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_120px_rgba(0,0,0,0.18)]">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_120px_rgba(0,0,0,0.18)]">
             <div className="border-b border-zinc-100 px-6 py-5">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
                 Refund
@@ -1516,7 +1521,7 @@ export const AdminOrders = () => {
               </div>
             </div>
 
-            <div className="max-h-[calc(90vh-96px)] overflow-y-auto px-6 py-6">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
               <div className="grid gap-4 rounded-[1.5rem] bg-zinc-50 p-4 md:grid-cols-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.24em] text-zinc-400">
@@ -1539,7 +1544,7 @@ export const AdminOrders = () => {
                     已退款
                   </p>
                   <p className="mt-2 font-semibold text-zinc-900">
-                    {formatCurrency(selectedRefundOrder.refundedAmount)}
+                    {formatCurrency(selectedRefundOrder.refundedAmount ?? 0)}
                   </p>
                 </div>
                 <div>
@@ -1602,9 +1607,9 @@ export const AdminOrders = () => {
                             <span className="rounded-full bg-zinc-100 px-3 py-1 font-medium text-zinc-600">
                               訂購數量 {item.quantity}
                             </span>
-                            <span className="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-600">
-                              已退款 {item.refundedQuantity}
-                            </span>
+                              <span className="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-600">
+                                已退款 {item.refundedQuantity ?? 0}
+                              </span>
                             <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-600">
                               可退 {remainingQuantity}
                             </span>
@@ -1623,7 +1628,7 @@ export const AdminOrders = () => {
                               type="number"
                               min={0}
                               max={remainingQuantity}
-                              value={draftQuantity}
+                              value={draftQuantity === 0 ? "" : String(draftQuantity)}
                               onChange={(event) =>
                                 updateRefundDraftQuantity(
                                   item.id,
@@ -1631,6 +1636,7 @@ export const AdminOrders = () => {
                                 )
                               }
                               disabled={remainingQuantity === 0}
+                              placeholder="0"
                               className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-zinc-100"
                             />
                           </div>
@@ -1679,7 +1685,10 @@ export const AdminOrders = () => {
                 </p>
               </div>
 
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            </div>
+
+            <div className="shrink-0 border-t border-zinc-100 bg-white px-6 py-4 [padding-bottom:calc(env(safe-area-inset-bottom)+1rem)]">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={closeRefundDialog}
