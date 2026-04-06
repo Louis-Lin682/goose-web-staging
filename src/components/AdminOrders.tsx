@@ -204,7 +204,7 @@ const getRefundBlockedReason = (order: OrderHistoryEntry) => {
     return "這筆訂單目前正在退款處理中。";
   }
 
-  if (order.status === "REFUNDED") {
+  if (order.status === "REFUNDED" && getRemainingRefundAmount(order) <= 0) {
     return "這筆訂單已退款完成。";
   }
 
