@@ -154,11 +154,24 @@ const resolvePaymentStatusDisplay = (order: {
   };
 };
 
+const getDisplayedRefundedAmount = (order: OrderHistoryEntry) => {
+  const refundedAmount = order.refundedAmount ?? 0;
+
+  if (refundedAmount > 0) {
+    return refundedAmount;
+  }
+
+  return order.items.reduce(
+    (sum, item) => sum + (item.refundedQuantity ?? 0) * item.unitPrice,
+    0,
+  );
+};
+
 const getRemainingRefundAmount = (order: OrderHistoryEntry) =>
-  Math.max(order.totalAmount - (order.refundedAmount ?? 0), 0);
+  Math.max(order.totalAmount - getDisplayedRefundedAmount(order), 0);
 
 const getNetReceivedAmount = (order: OrderHistoryEntry) =>
-  Math.max(order.totalAmount - (order.refundedAmount ?? 0), 0);
+  Math.max(order.totalAmount - getDisplayedRefundedAmount(order), 0);
 
 const getRemainingRefundableQuantity = (item: OrderHistoryEntry["items"][number]) =>
   Math.max(item.quantity - (item.refundedQuantity ?? 0), 0);
@@ -1446,15 +1459,15 @@ export const AdminOrders = () => {
                                   <span>貨到付款手續費</span>
                                   <span>{formatCurrency(order.codFee)}</span>
                                 </div>
-                                {(order.refundedAmount ?? 0) > 0 && (
+                                {getDisplayedRefundedAmount(order) > 0 && (
                                   <div className="flex items-center justify-between text-rose-200">
                                     <span>已退款金額</span>
-                                    <span>{formatCurrency(order.refundedAmount ?? 0)}</span>
+                                    <span>{formatCurrency(getDisplayedRefundedAmount(order))}</span>
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">
                                   <span>
-                                    {(order.refundedAmount ?? 0) > 0 ? "實收金額" : "訂單總額"}
+                                    {getDisplayedRefundedAmount(order) > 0 ? "實收金額" : "訂單總額"}
                                   </span>
                                   <span>{formatCurrency(getNetReceivedAmount(order))}</span>
                                 </div>
@@ -1494,8 +1507,8 @@ export const AdminOrders = () => {
       </div>
 
       {isRefundDialogOpen && selectedRefundOrder && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_120px_rgba(0,0,0,0.18)]">
+          <div className="fixed inset-0 z-[110] flex items-end justify-center bg-zinc-950/45 px-4 py-2 backdrop-blur-sm sm:items-center sm:py-8">
+          <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_120px_rgba(0,0,0,0.18)] sm:max-h-[90vh]">
             <div className="border-b border-zinc-100 px-6 py-5">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-orange-600">
                 Refund
@@ -1544,7 +1557,7 @@ export const AdminOrders = () => {
                     已退款
                   </p>
                   <p className="mt-2 font-semibold text-zinc-900">
-                    {formatCurrency(selectedRefundOrder.refundedAmount ?? 0)}
+                    {formatCurrency(getDisplayedRefundedAmount(selectedRefundOrder))}
                   </p>
                 </div>
                 <div>
@@ -1625,16 +1638,19 @@ export const AdminOrders = () => {
                               退款數量
                             </label>
                             <input
-                              type="number"
-                              min={0}
-                              max={remainingQuantity}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               value={draftQuantity === 0 ? "" : String(draftQuantity)}
-                              onChange={(event) =>
-                                updateRefundDraftQuantity(
-                                  item.id,
-                                  Number(event.target.value || 0),
-                                )
-                              }
+                              onChange={(event) => {
+                                const rawValue = event.target.value.replace(/\D/g, "");
+                                const nextQuantity =
+                                  rawValue === ""
+                                    ? 0
+                                    : Math.min(Number(rawValue), remainingQuantity);
+
+                                updateRefundDraftQuantity(item.id, nextQuantity);
+                              }}
                               disabled={remainingQuantity === 0}
                               placeholder="0"
                               className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none transition-colors focus:border-orange-400 disabled:cursor-not-allowed disabled:bg-zinc-100"
