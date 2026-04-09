@@ -4,6 +4,9 @@ import { LoaderCircle, ShieldAlert } from "lucide-react";
 import { getCurrentUser } from "../lib/auth";
 import { useAuth } from "../context/useAuth";
 
+const LINE_HYDRATE_MAX_ATTEMPTS = 10;
+const LINE_HYDRATE_RETRY_DELAY_MS = 1500;
+
 export const LineAuthComplete = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -21,50 +24,98 @@ export const LineAuthComplete = () => {
     }
 
     let isMounted = true;
+    let isHydrating = false;
+    let timeoutId: number | null = null;
+    let completed = false;
 
-    const wait = (ms: number) =>
-      new Promise((resolve) => window.setTimeout(resolve, ms));
+    const waitForRetry = (attempt: number) => {
+      if (!isMounted || completed) {
+        return;
+      }
 
-    const hydrateLineUser = async () => {
+      timeoutId = window.setTimeout(() => {
+        void hydrateLineUser(attempt + 1);
+      }, LINE_HYDRATE_RETRY_DELAY_MS);
+    };
+
+    const hydrateLineUser = async (attempt = 0) => {
+      if (!isMounted || completed || isHydrating) {
+        return;
+      }
+
+      isHydrating = true;
+
       try {
-        for (let attempt = 0; attempt < 4; attempt += 1) {
-          const response = await getCurrentUser();
+        const response = await getCurrentUser();
 
-          if (!isMounted) {
-            return;
-          }
-
-          if (response.user) {
-            signIn(response.user);
-            navigate(response.user.isAdmin ? "/admin/notifications" : nextPath, {
-              replace: true,
-            });
-            return;
-          }
-
-          if (attempt < 3) {
-            await wait(1000);
-          }
-        }
-
-        throw new Error("LINE 註冊尚未完成，請重新嘗試一次。");
-      } catch (error) {
-        if (!isMounted) {
+        if (!isMounted || completed) {
           return;
         }
 
+        if (response.user) {
+          completed = true;
+          signIn(response.user);
+          navigate(response.user.isAdmin ? "/admin/notifications" : nextPath, {
+            replace: true,
+          });
+          return;
+        }
+
+        if (attempt < LINE_HYDRATE_MAX_ATTEMPTS - 1) {
+          waitForRetry(attempt);
+          return;
+        }
+
+        completed = true;
+        setErrorMessage("LINE 登入完成後未能同步會員狀態，請稍後再試。");
+      } catch (error) {
+        if (!isMounted || completed) {
+          return;
+        }
+
+        if (attempt < LINE_HYDRATE_MAX_ATTEMPTS - 1) {
+          waitForRetry(attempt);
+          return;
+        }
+
+        completed = true;
         setErrorMessage(
           error instanceof Error
             ? error.message
             : "LINE 登入失敗，請稍後再試。",
         );
+      } finally {
+        isHydrating = false;
       }
+    };
+
+    const resumeHydration = () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+
+      void hydrateLineUser();
     };
 
     void hydrateLineUser();
 
+    window.addEventListener("pageshow", resumeHydration);
+    window.addEventListener("focus", resumeHydration);
+    document.addEventListener("visibilitychange", resumeHydration);
+
     return () => {
       isMounted = false;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      window.removeEventListener("pageshow", resumeHydration);
+      window.removeEventListener("focus", resumeHydration);
+      document.removeEventListener("visibilitychange", resumeHydration);
     };
   }, [explicitStatus, navigate, nextPath, searchParams, signIn]);
 
@@ -98,7 +149,7 @@ export const LineAuthComplete = () => {
               正在完成 LINE 登入
             </h1>
             <p className="mt-4 text-sm leading-7 text-zinc-600">
-              正在同步您的會員資料與登入狀態，若頁面稍慢屬正常情況，請稍候片刻。
+              正在同步會員資料與登入狀態，若頁面稍慢屬正常情況，請先稍候。
             </p>
           </>
         )}
