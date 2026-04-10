@@ -39,6 +39,18 @@ export const AdminSectionNav = () => {
         訂單管理
       </NavLink>
       <NavLink
+        to="/admin/featured"
+        className={({ isActive }) =>
+          `${navItemClassName} ${
+            isActive
+              ? "bg-zinc-900 text-white"
+              : "bg-white text-zinc-700 hover:bg-zinc-100"
+          }`
+        }
+      >
+        推薦產品
+      </NavLink>
+      <NavLink
         to="/admin/stats"
         className={({ isActive }) =>
           `${navItemClassName} ${

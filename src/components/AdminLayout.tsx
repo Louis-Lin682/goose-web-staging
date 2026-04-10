@@ -8,15 +8,16 @@ import {
   LogOut,
   Package,
   ReceiptText,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { AdminSectionNav } from "./AdminSectionNav";
-import { EnvironmentInlineTag } from "./EnvironmentIndicator";
 import { useAdminNotifications } from "../context/useAdminNotifications";
 import { useAuth } from "../context/useAuth";
 import { logout as logoutUser } from "../lib/auth";
+import { AdminSectionNav } from "./AdminSectionNav";
+import { EnvironmentInlineTag } from "./EnvironmentIndicator";
 
 const desktopNavItemClassName =
   "flex items-center rounded-2xl text-sm font-semibold transition-colors";
@@ -52,6 +53,11 @@ export const AdminLayout = () => {
       to: "/admin/orders",
       icon: ReceiptText,
       label: "訂單管理",
+    },
+    {
+      to: "/admin/featured",
+      icon: Sparkles,
+      label: "推薦產品",
     },
     {
       to: "/admin/stats",
@@ -105,7 +111,7 @@ export const AdminLayout = () => {
                       後台管理中心
                     </h1>
                     <p className="mt-3 text-sm leading-7 text-zinc-500">
-                      快速查看通知、訂單、會員與商品資料，整理每日營運狀態。
+                      管理訂單、通知、推薦產品、會員與商品資料，讓每日營運資訊集中在同一個工作台。
                     </p>
                   </>
                 )}
@@ -140,11 +146,11 @@ export const AdminLayout = () => {
                         <Icon className="h-4 w-4" />
                         {!isSidebarCollapsed && <span>{item.label}</span>}
                       </span>
-                      {!isSidebarCollapsed && item.badge && (
+                      {!isSidebarCollapsed && item.badge ? (
                         <span className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[11px] font-bold text-white">
                           {item.badge}
                         </span>
-                      )}
+                      ) : null}
                     </NavLink>
                   );
                 })}
@@ -159,7 +165,7 @@ export const AdminLayout = () => {
                   <div className="flex flex-col items-center gap-3">
                     <NavLink
                       to="/"
-                      title="前往前台"
+                      title="返回官網"
                       className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white transition-colors hover:bg-zinc-800"
                     >
                       <Home className="h-4 w-4" />
@@ -176,7 +182,7 @@ export const AdminLayout = () => {
                     ) : (
                       <NavLink
                         to="/"
-                        title="登入前台"
+                        title="返回登入"
                         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition-colors hover:bg-zinc-100"
                       >
                         <LogIn className="h-4 w-4" />
@@ -189,7 +195,7 @@ export const AdminLayout = () => {
                       Storefront
                     </p>
                     <p className="mt-3 text-sm leading-7 text-zinc-500">
-                      需要查看前台頁面時，可直接回到商店首頁確認實際顯示狀態。
+                      快速回到前台檢查門市資訊、推薦產品與商品內容，確認實際呈現是否符合目前設定。
                     </p>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <NavLink
@@ -197,7 +203,7 @@ export const AdminLayout = () => {
                         className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
                       >
                         <Home className="h-4 w-4" />
-                        前往前台
+                        返回官網
                       </NavLink>
                       {isAuthenticated ? (
                         <button
@@ -214,7 +220,7 @@ export const AdminLayout = () => {
                           className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
                         >
                           <LogIn className="h-4 w-4" />
-                          登入
+                          返回登入
                         </NavLink>
                       )}
                     </div>
@@ -261,7 +267,7 @@ export const AdminLayout = () => {
                     className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
                   >
                     <Home className="h-4 w-4" />
-                    前往前台
+                    返回官網
                   </NavLink>
                   {isAuthenticated ? (
                     <button
@@ -278,14 +284,14 @@ export const AdminLayout = () => {
                       className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
                     >
                       <LogIn className="h-4 w-4" />
-                      登入
+                      返回登入
                     </NavLink>
                   )}
                 </div>
               </div>
 
               <p className="mt-4 text-sm leading-7 text-zinc-500">
-                在手機或窄版視窗下，會以這裡的快捷導覽切換後台各區。
+                在手機或較小螢幕上也能快速切換通知、訂單、推薦產品、會員與商品管理。
               </p>
             </div>
 

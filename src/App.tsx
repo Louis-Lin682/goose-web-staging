@@ -7,6 +7,7 @@ import { AboutPreview } from "./components/AboutPreview";
 import { AdminMembers } from "./components/AdminMembers";
 import { AdminNotifications } from "./components/AdminNotifications";
 import { AdminOrders } from "./components/AdminOrders";
+import { AdminFeaturedProducts } from "./components/AdminFeaturedProducts";
 import { AdminProductStats } from "./components/AdminProductStats";
 import { AdminProducts } from "./components/AdminProducts";
 import { Cart } from "./components/Cart";
@@ -116,6 +117,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="featured" element={<AdminFeaturedProducts />} />
             <Route path="stats" element={<AdminProductStats />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="products" element={<AdminProducts />} />

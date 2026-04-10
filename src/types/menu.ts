@@ -23,6 +23,34 @@ export type ProductsResponse = {
   products: MenuItem[];
 };
 
+export type FeaturedProductEntry = {
+  slot: number;
+  productId: string | null;
+  tag: string | null;
+  description: string | null;
+  product: MenuItem | null;
+};
+
+export type FeaturedProductsResponse = {
+  featuredProducts: FeaturedProductEntry[];
+};
+
+export type FeaturedProductPayload = {
+  slot: number;
+  productId?: string | null;
+  tag?: string | null;
+  description?: string | null;
+};
+
+export type UpdateFeaturedProductsPayload = {
+  featuredProducts: FeaturedProductPayload[];
+};
+
+export type UpdateFeaturedProductsResponse = {
+  message: string;
+  featuredProducts: FeaturedProductEntry[];
+};
+
 export type CreateProductPayload = {
   category: string;
   categoryOrder?: number;

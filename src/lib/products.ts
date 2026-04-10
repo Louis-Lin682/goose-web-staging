@@ -3,9 +3,12 @@ import type {
   CreateProductPayload,
   CreateProductResponse,
   DeleteProductResponse,
+  FeaturedProductsResponse,
   ProductsResponse,
   UpdateCategoryOrderPayload,
   UpdateCategoryOrderResponse,
+  UpdateFeaturedProductsPayload,
+  UpdateFeaturedProductsResponse,
   UpdateProductPayload,
   UpdateProductResponse,
 } from "../types/menu";
@@ -18,11 +21,28 @@ export const getAdminProducts = async (): Promise<ProductsResponse> => {
   return apiRequest<ProductsResponse>("/admin/products");
 };
 
+export const getFeaturedProducts = async (): Promise<FeaturedProductsResponse> => {
+  return apiRequest<FeaturedProductsResponse>("/products/featured");
+};
+
+export const getAdminFeaturedProducts = async (): Promise<FeaturedProductsResponse> => {
+  return apiRequest<FeaturedProductsResponse>("/admin/products/featured");
+};
+
 export const createProduct = async (
   payload: CreateProductPayload,
 ): Promise<CreateProductResponse> => {
   return apiRequest<CreateProductResponse>("/admin/products", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateFeaturedProducts = async (
+  payload: UpdateFeaturedProductsPayload,
+): Promise<UpdateFeaturedProductsResponse> => {
+  return apiRequest<UpdateFeaturedProductsResponse>("/admin/products/featured", {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 };

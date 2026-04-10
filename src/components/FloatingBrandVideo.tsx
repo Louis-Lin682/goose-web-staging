@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import { Minimize2, Play, Volume2, VolumeX, X } from "lucide-react";
 
 export const FloatingBrandVideo = () => {
   const location = useLocation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [hasManuallyClosed, setHasManuallyClosed] = useState(false);
   const shouldHideVideoTrigger = location.pathname === "/checkout";
-
-  useEffect(() => {
-    if (location.pathname === "/origin" && !hasManuallyClosed) {
-      setIsExpanded(true);
-    }
-  }, [hasManuallyClosed, location.pathname]);
+  const shouldAutoExpand = location.pathname === "/origin" && !hasManuallyClosed;
+  const isVideoExpanded = isExpanded || shouldAutoExpand;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -23,17 +21,22 @@ export const FloatingBrandVideo = () => {
 
     video.muted = isMuted;
 
-    if (isExpanded) {
+    if (isVideoExpanded) {
       void video.play().catch(() => undefined);
       return;
     }
 
     video.pause();
-  }, [isExpanded, isMuted]);
+  }, [isMuted, isVideoExpanded]);
 
   const handleOpen = () => {
     setHasManuallyClosed(false);
     setIsExpanded(true);
+  };
+
+  const handleMinimize = () => {
+    setHasManuallyClosed(true);
+    setIsExpanded(false);
   };
 
   const handleClose = () => {
@@ -46,23 +49,29 @@ export const FloatingBrandVideo = () => {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-20 right-4 z-[85] md:right-6">
+    <div className="fixed bottom-20 right-4 z-[85] w-[11.5rem] md:right-6 md:w-[15rem]">
       <AnimatePresence mode="wait">
-        {isExpanded ? (
+        {isVideoExpanded ? (
           <motion.div
             key="player"
             initial={{ opacity: 0, y: 24, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.22 }}
-            className="pointer-events-auto w-[11.5rem] overflow-hidden rounded-[1.25rem] border border-zinc-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] md:w-[15rem] md:rounded-[1.5rem]"
+            drag
+            dragMomentum={false}
+            dragElastic={0.08}
+            style={{ x, y }}
+            className="w-full overflow-hidden rounded-[1.25rem] border border-zinc-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] md:rounded-[1.5rem]"
           >
-            <div className="flex items-center justify-between border-b border-zinc-100 px-2.5 py-2 md:px-3 md:py-2.5">
+            <div className="flex cursor-grab items-center justify-between border-b border-zinc-100 px-2.5 py-2 active:cursor-grabbing md:px-3 md:py-2.5">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-600">
                   Video
                 </p>
-                <p className="mt-1 text-xs font-bold text-zinc-900 md:text-sm">獅頭鵝介紹</p>
+                <p className="mt-1 text-xs font-bold text-zinc-900 md:text-sm">
+                  認識獅頭鵝
+                </p>
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -75,7 +84,7 @@ export const FloatingBrandVideo = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsExpanded(false)}
+                  onClick={handleMinimize}
                   className="rounded-full p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 md:p-2"
                   aria-label="縮小影片視窗"
                 >
@@ -106,28 +115,32 @@ export const FloatingBrandVideo = () => {
             </div>
           </motion.div>
         ) : (
-          <motion.button
-            key="trigger"
-            type="button"
+          <motion.div
+            key="trigger-wrap"
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            onClick={handleOpen}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-zinc-200 bg-white/95 px-3 py-2.5 text-left shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur transition-transform hover:-translate-y-0.5 md:gap-3 md:px-4 md:py-3"
+            className="flex justify-end"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white md:h-10 md:w-10">
-              <Play size={14} fill="currentColor" />
-            </span>
-            <span>
-              <span className="block text-[10px] font-black uppercase tracking-[0.26em] text-orange-600">
-                Video
+            <button
+              type="button"
+              onClick={handleOpen}
+              className="flex cursor-grab items-center gap-2.5 rounded-full border border-zinc-200 bg-white/95 px-3 py-2.5 text-left shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur transition-transform hover:-translate-y-0.5 active:cursor-grabbing md:gap-3 md:px-4 md:py-3"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white md:h-10 md:w-10">
+                <Play size={14} fill="currentColor" />
               </span>
-              <span className="mt-0.5 block text-xs font-semibold text-zinc-900 md:mt-1 md:text-sm">
-                獅頭鵝介紹
+              <span>
+                <span className="block text-[10px] font-black uppercase tracking-[0.26em] text-orange-600">
+                  Video
+                </span>
+                <span className="mt-0.5 block text-xs font-semibold text-zinc-900 md:mt-1 md:text-sm">
+                  獅頭鵝介紹
+                </span>
               </span>
-            </span>
-          </motion.button>
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
