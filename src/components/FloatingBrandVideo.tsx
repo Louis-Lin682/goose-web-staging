@@ -3,11 +3,22 @@ import { useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useMotionValue } from "framer-motion";
 import { Minimize2, Play, Volume2, VolumeX, X } from "lucide-react";
 
+const EMPTY_DRAG_CONSTRAINTS = {
+  bottom: 0,
+  left: 0,
+  right: 0,
+  top: 0,
+};
+
 export const FloatingBrandVideo = () => {
   const location = useLocation();
+  const playerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const [dragConstraints, setDragConstraints] = useState(
+    EMPTY_DRAG_CONSTRAINTS,
+  );
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [hasManuallyClosed, setHasManuallyClosed] = useState(false);
@@ -44,6 +55,40 @@ export const FloatingBrandVideo = () => {
     setIsExpanded(false);
   };
 
+  const getDragConstraints = () => {
+    const player = playerRef.current;
+
+    if (!player || typeof window === "undefined") {
+      return EMPTY_DRAG_CONSTRAINTS;
+    }
+
+    const rect = player.getBoundingClientRect();
+    const currentX = x.get();
+    const currentY = y.get();
+    const baseLeft = rect.left - currentX;
+    const baseRight = rect.right - currentX;
+    const baseTop = rect.top - currentY;
+    const baseBottom = rect.bottom - currentY;
+
+    return {
+      bottom: window.innerHeight - baseBottom,
+      left: -baseLeft,
+      right: window.innerWidth - baseRight,
+      top: -baseTop,
+    };
+  };
+
+  const updateDragConstraints = () => {
+    setDragConstraints(getDragConstraints());
+  };
+
+  const keepPlayerInViewport = () => {
+    const constraints = getDragConstraints();
+    setDragConstraints(constraints);
+    x.set(Math.min(Math.max(x.get(), constraints.left), constraints.right));
+    y.set(Math.min(Math.max(y.get(), constraints.top), constraints.bottom));
+  };
+
   if (shouldHideVideoTrigger) {
     return null;
   }
@@ -53,14 +98,18 @@ export const FloatingBrandVideo = () => {
       <AnimatePresence mode="wait">
         {isVideoExpanded ? (
           <motion.div
+            ref={playerRef}
             key="player"
             initial={{ opacity: 0, y: 24, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.22 }}
             drag
-            dragMomentum={false}
+            dragConstraints={dragConstraints}
             dragElastic={0.08}
+            dragMomentum={false}
+            onDragEnd={keepPlayerInViewport}
+            onPointerDownCapture={updateDragConstraints}
             style={{ x, y }}
             className="w-full overflow-hidden rounded-[1.25rem] border border-zinc-200 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] md:rounded-[1.5rem]"
           >
@@ -126,7 +175,7 @@ export const FloatingBrandVideo = () => {
             <button
               type="button"
               onClick={handleOpen}
-              className="flex cursor-grab items-center gap-2.5 rounded-full border border-zinc-200 bg-white/95 px-3 py-2.5 text-left shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur transition-transform hover:-translate-y-0.5 active:cursor-grabbing md:gap-3 md:px-4 md:py-3"
+              className="flex items-center gap-2.5 rounded-full border border-zinc-200 bg-white/95 px-3 py-2.5 text-left shadow-[0_14px_35px_rgba(0,0,0,0.14)] backdrop-blur transition-transform hover:-translate-y-0.5 md:gap-3 md:px-4 md:py-3"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900 text-white md:h-10 md:w-10">
                 <Play size={14} fill="currentColor" />
