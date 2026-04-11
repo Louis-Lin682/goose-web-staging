@@ -6,9 +6,9 @@ export interface MenuItem {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
-  price?: number;
-  priceSmall?: number;
-  priceLarge?: number;
+  price?: number | null;
+  priceSmall?: number | null;
+  priceLarge?: number | null;
   isActive?: boolean;
   sortOrder?: number;
 }
@@ -58,9 +58,9 @@ export type CreateProductPayload = {
   name: string;
   description?: string;
   imageUrl?: string;
-  price?: number;
-  priceSmall?: number;
-  priceLarge?: number;
+  price?: number | null;
+  priceSmall?: number | null;
+  priceLarge?: number | null;
   isActive?: boolean;
   sortOrder?: number;
 };
@@ -77,9 +77,9 @@ export type UpdateProductPayload = {
   name?: string;
   description?: string | null;
   imageUrl?: string | null;
-  price?: number;
-  priceSmall?: number;
-  priceLarge?: number;
+  price?: number | null;
+  priceSmall?: number | null;
+  priceLarge?: number | null;
   isActive?: boolean;
   sortOrder?: number;
 };

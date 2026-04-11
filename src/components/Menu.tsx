@@ -32,6 +32,7 @@ const cardVariants: Variants = {
 };
 
 const DEFAULT_DESCRIPTION = "精選人氣料理，值得慢慢品嚐。";
+const DEFAULT_PRODUCT_IMAGE = "/products/goose-platter-1.jpg";
 
 const toRenderableItem = (
   slot: number,
@@ -45,7 +46,7 @@ const toRenderableItem = (
     product.description?.trim() ||
     DEFAULT_DESCRIPTION,
   tag: overrides?.tag?.trim() || product.subCategory || product.category,
-  image: product.imageUrl?.trim() || "/banner/banner_goose.jpg",
+  image: product.imageUrl?.trim() || DEFAULT_PRODUCT_IMAGE,
 });
 
 const buildFallbackFeaturedItems = (products: MenuItem[]): RenderableFeaturedItem[] => {

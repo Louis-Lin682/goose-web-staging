@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Save, Sparkles } from "lucide-react";
+import { LoaderCircle, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/useAuth";
 import {
@@ -12,6 +12,8 @@ import type {
   FeaturedProductsResponse,
   MenuItem,
 } from "../types/menu";
+
+const DEFAULT_PRODUCT_IMAGE = "/products/goose-platter-1.jpg";
 
 type FeaturedProductFormSlot = {
   slot: number;
@@ -166,9 +168,6 @@ export const AdminFeaturedProducts = () => {
               Admin
             </p>
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
-                <Sparkles className="h-5 w-5" />
-              </span>
               <div>
                 <h1 className="text-4xl font-black tracking-tight text-zinc-900">
                   推薦產品
@@ -286,17 +285,11 @@ export const AdminFeaturedProducts = () => {
 
               <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-zinc-50">
                 <div className="aspect-[4/3] bg-zinc-100">
-                  {selectedProduct?.imageUrl ? (
-                    <img
-                      src={selectedProduct.imageUrl}
-                      alt={selectedProduct.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-zinc-400">
-                      尚未選擇商品圖片
-                    </div>
-                  )}
+                  <img
+                    src={selectedProduct?.imageUrl?.trim() || DEFAULT_PRODUCT_IMAGE}
+                    alt={selectedProduct?.name ?? "預設商品圖片"}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
 
                 <div className="space-y-2 px-4 py-4">

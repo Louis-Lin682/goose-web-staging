@@ -12,6 +12,8 @@ import {
 } from "../lib/products";
 import type { CreateProductPayload, MenuItem } from "../types/menu";
 
+const DEFAULT_PRODUCT_IMAGE = "/products/goose-platter-1.jpg";
+
 type ProductDraft = {
   subCategory: string;
   name: string;
@@ -22,6 +24,10 @@ type ProductDraft = {
   priceLarge: string;
   sortOrder: string;
 };
+
+type PriceField = "price" | "priceSmall" | "priceLarge";
+
+type PriceInputState = Record<PriceField, string>;
 
 type ProductGroup = {
   category: string;
@@ -40,11 +46,46 @@ const createEmptyDraft = (): ProductDraft => ({
   sortOrder: "",
 });
 
-const formatPrice = (value?: number) =>
+const formatPrice = (value?: number | null) =>
   typeof value === "number" ? `${value}` : "";
+
+const getInitialPriceInputs = (product: MenuItem): PriceInputState => ({
+  price: formatPrice(product.price),
+  priceLarge: formatPrice(product.priceLarge),
+  priceSmall: formatPrice(product.priceSmall),
+});
+
+const toNullableNumber = (value: string) =>
+  value.trim() === "" ? null : Number(value.replace(/\D/g, ""));
 
 const toOptionalNumber = (value: string) =>
   value.trim() === "" ? undefined : Number(value);
+
+const normalizeExclusivePrices = (prices: PriceInputState): PriceInputState => {
+  const normalized = {
+    price: prices.price.replace(/\D/g, ""),
+    priceLarge: prices.priceLarge.replace(/\D/g, ""),
+    priceSmall: prices.priceSmall.replace(/\D/g, ""),
+  };
+
+  if (normalized.price !== "") {
+    return {
+      price: normalized.price,
+      priceLarge: "",
+      priceSmall: "",
+    };
+  }
+
+  if (normalized.priceSmall !== "" || normalized.priceLarge !== "") {
+    return {
+      price: "",
+      priceLarge: normalized.priceLarge,
+      priceSmall: normalized.priceSmall,
+    };
+  }
+
+  return normalized;
+};
 
 export const AdminProducts = () => {
   const { isAuthReady, isAuthenticated, user } = useAuth();
@@ -76,6 +117,7 @@ export const AdminProducts = () => {
   const [draftCategory, setDraftCategory] = useState("");
   const [draftCategoryOrder, setDraftCategoryOrder] = useState("");
   const [drafts, setDrafts] = useState<ProductDraft[]>([createEmptyDraft()]);
+  const [priceInputs, setPriceInputs] = useState<Record<string, PriceInputState>>({});
   const productSnapshotsRef = useRef<Record<string, MenuItem>>({});
 
   useEffect(() => {
@@ -249,7 +291,7 @@ export const AdminProducts = () => {
                 field === "priceSmall" ||
                 field === "priceLarge"
                   ? value === ""
-                    ? undefined
+                    ? null
                     : Number(value)
                   : value,
             }
@@ -258,10 +300,28 @@ export const AdminProducts = () => {
     );
   };
 
+  const handlePriceFieldChange = (
+    product: MenuItem,
+    field: PriceField,
+    value: string,
+  ) => {
+    setPriceInputs((currentInputs) => ({
+      ...currentInputs,
+      [product.id]: normalizeExclusivePrices({
+        ...(currentInputs[product.id] ?? getInitialPriceInputs(product)),
+        [field]: value,
+      }),
+    }));
+  };
+
   const handleSave = async (product: MenuItem) => {
     setSavingProductId(product.id);
     setSavedProductId(null);
     setError(null);
+    const productPriceInputs = normalizeExclusivePrices(
+      priceInputs[product.id] ?? getInitialPriceInputs(product),
+    );
+
     try {
       await updateProduct(product.id, {
         category: product.category,
@@ -269,15 +329,17 @@ export const AdminProducts = () => {
         name: product.name,
         description: product.description?.trim() ? product.description.trim() : null,
         imageUrl: product.imageUrl?.trim() ? product.imageUrl.trim() : null,
-        price: typeof product.price === "number" ? product.price : undefined,
-        priceSmall:
-          typeof product.priceSmall === "number" ? product.priceSmall : undefined,
-        priceLarge:
-          typeof product.priceLarge === "number" ? product.priceLarge : undefined,
+        price: toNullableNumber(productPriceInputs.price),
+        priceSmall: toNullableNumber(productPriceInputs.priceSmall),
+        priceLarge: toNullableNumber(productPriceInputs.priceLarge),
         sortOrder: typeof product.sortOrder === "number" ? product.sortOrder : 0,
       });
       await refreshProducts();
       delete productSnapshotsRef.current[product.id];
+      setPriceInputs((currentInputs) => {
+        const { [product.id]: _removedInput, ...nextInputs } = currentInputs;
+        return nextInputs;
+      });
       setEditingProductId((currentProductId) =>
         currentProductId === product.id ? null : currentProductId,
       );
@@ -296,6 +358,10 @@ export const AdminProducts = () => {
 
   const handleStartEdit = (product: MenuItem) => {
     productSnapshotsRef.current[product.id] = { ...product };
+    setPriceInputs((currentInputs) => ({
+      ...currentInputs,
+      [product.id]: normalizeExclusivePrices(getInitialPriceInputs(product)),
+    }));
     setEditingProductId(product.id);
     setSavedProductId(null);
     setError(null);
@@ -311,6 +377,10 @@ export const AdminProducts = () => {
       );
       delete productSnapshotsRef.current[productId];
     }
+    setPriceInputs((currentInputs) => {
+      const { [productId]: _removedInput, ...nextInputs } = currentInputs;
+      return nextInputs;
+    });
     setEditingProductId((currentProductId) =>
       currentProductId === productId ? null : currentProductId,
     );
@@ -376,9 +446,27 @@ export const AdminProducts = () => {
 
   const handleDraftFieldChange = (index: number, field: keyof ProductDraft, value: string) => {
     setDrafts((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [field]: value } : item,
-      ),
+      current.map((item, itemIndex) => {
+        if (itemIndex !== index) {
+          return item;
+        }
+
+        if (field !== "price" && field !== "priceSmall" && field !== "priceLarge") {
+          return { ...item, [field]: value };
+        }
+
+        const normalizedPrices = normalizeExclusivePrices({
+          price: item.price,
+          priceLarge: item.priceLarge,
+          priceSmall: item.priceSmall,
+          [field]: value,
+        });
+
+        return {
+          ...item,
+          ...normalizedPrices,
+        };
+      }),
     );
   };
 
@@ -417,6 +505,11 @@ export const AdminProducts = () => {
           ...item,
           sortOrder: `${sortOrder}`,
         };
+        const normalizedPrices = normalizeExclusivePrices({
+          price: item.price,
+          priceLarge: item.priceLarge,
+          priceSmall: item.priceSmall,
+        });
         const payload: CreateProductPayload = {
           category: draftCategory.trim(),
           categoryOrder:
@@ -425,9 +518,9 @@ export const AdminProducts = () => {
           name: item.name.trim(),
           description: item.description.trim() || undefined,
           imageUrl: item.imageUrl.trim() || undefined,
-          price: toOptionalNumber(item.price),
-          priceSmall: toOptionalNumber(item.priceSmall),
-          priceLarge: toOptionalNumber(item.priceLarge),
+          price: toOptionalNumber(normalizedPrices.price),
+          priceSmall: toOptionalNumber(normalizedPrices.priceSmall),
+          priceLarge: toOptionalNumber(normalizedPrices.priceLarge),
           sortOrder,
         };
         await createProduct(payload);
@@ -700,11 +793,14 @@ export const AdminProducts = () => {
                                   單一價格
                                 </p>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  value={formatPrice(product.price)}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={
+                                    priceInputs[product.id]?.price ??
+                                    formatPrice(product.price)
+                                  }
                                   onChange={(event) =>
-                                    handleFieldChange(product.id, "price", event.target.value)
+                                    handlePriceFieldChange(product, "price", event.target.value)
                                   }
                                   disabled={!isEditing}
                                   className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
@@ -742,15 +838,14 @@ export const AdminProducts = () => {
                                   小份價格
                                 </p>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  value={formatPrice(product.priceSmall)}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={
+                                    priceInputs[product.id]?.priceSmall ??
+                                    formatPrice(product.priceSmall)
+                                  }
                                   onChange={(event) =>
-                                    handleFieldChange(
-                                      product.id,
-                                      "priceSmall",
-                                      event.target.value,
-                                    )
+                                    handlePriceFieldChange(product, "priceSmall", event.target.value)
                                   }
                                   disabled={!isEditing}
                                   className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
@@ -765,15 +860,14 @@ export const AdminProducts = () => {
                                   大份價格
                                 </p>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  value={formatPrice(product.priceLarge)}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={
+                                    priceInputs[product.id]?.priceLarge ??
+                                    formatPrice(product.priceLarge)
+                                  }
                                   onChange={(event) =>
-                                    handleFieldChange(
-                                      product.id,
-                                      "priceLarge",
-                                      event.target.value,
-                                    )
+                                    handlePriceFieldChange(product, "priceLarge", event.target.value)
                                   }
                                   disabled={!isEditing}
                                   className={`h-11 w-full rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
@@ -827,7 +921,7 @@ export const AdminProducts = () => {
                                     )
                                   }
                                   disabled={!isEditing}
-                                  placeholder="/image/products/example.jpg"
+                                  placeholder={DEFAULT_PRODUCT_IMAGE}
                                   className={`h-11 w-80 rounded-2xl border px-4 text-sm text-zinc-900 outline-none transition-colors ${
                                     isEditing
                                       ? "border-zinc-200 bg-white focus:border-orange-400"
@@ -838,17 +932,11 @@ export const AdminProducts = () => {
                               <div className="flex justify-start">
                                 <div className="w-24 overflow-hidden rounded-[1rem] border border-zinc-200 bg-zinc-100">
                                   <div className="aspect-square">
-                                    {product.imageUrl?.trim() ? (
-                                      <img
-                                        src={product.imageUrl}
-                                        alt={product.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="flex h-full items-center justify-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300">
-                                        IMG
-                                      </div>
-                                    )}
+                                    <img
+                                      src={product.imageUrl?.trim() || DEFAULT_PRODUCT_IMAGE}
+                                      alt={product.name}
+                                      className="h-full w-full object-cover"
+                                    />
                                   </div>
                                 </div>
                               </div>
@@ -1078,7 +1166,7 @@ export const AdminProducts = () => {
                         onChange={(event) =>
                           handleDraftFieldChange(index, "imageUrl", event.target.value)
                         }
-                        placeholder="/image/products/example.jpg"
+                        placeholder={DEFAULT_PRODUCT_IMAGE}
                         className="h-12 rounded-2xl border border-zinc-200 px-4 text-sm text-zinc-900 outline-none transition-colors focus:border-orange-400 md:col-span-2"
                       />
                       <input

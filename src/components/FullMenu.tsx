@@ -7,12 +7,9 @@ import { SelectionDrawer } from "../components/SelectionDrawer";
 import { useCart } from "../context/useCart";
 import { getProducts } from "../lib/products";
 
-const getDesktopPrice = (item: MenuItem) => item.price ?? item.priceSmall ?? 0;
+const DEFAULT_PRODUCT_IMAGE = "/products/goose-platter-1.jpg";
 
-const getProductImage = (item: MenuItem) => {
-  const normalizedImageUrl = item.imageUrl?.trim();
-  return normalizedImageUrl ? normalizedImageUrl : null;
-};
+const getDesktopPrice = (item: MenuItem) => item.price ?? item.priceSmall ?? 0;
 
 const getProductDescription = (item: MenuItem) => {
   const normalizedDescription = item.description?.trim();
@@ -182,17 +179,11 @@ export const FullMenu = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100">
-                      {getProductImage(item) ? (
-                        <img
-                          src={getProductImage(item) ?? undefined}
-                          alt={item.name}
-                          className="h-full w-full rounded-2xl object-cover"
-                        />
-                      ) : (
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-300">
-                          IMG
-                        </span>
-                      )}
+                      <img
+                        src={item.imageUrl?.trim() || DEFAULT_PRODUCT_IMAGE}
+                        alt={item.name}
+                        className="h-full w-full rounded-2xl object-cover"
+                      />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -269,19 +260,11 @@ export const FullMenu = () => {
                   >
                     <div className="flex items-start gap-6">
                       <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 shadow-inner transition-all duration-700 group-hover:grayscale-0">
-                        {getProductImage(item) ? (
-                          <img
-                            src={getProductImage(item) ?? undefined}
-                            alt={item.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 italic">
-                              IMAGE
-                            </span>
-                          </div>
-                        )}
+                        <img
+                          src={item.imageUrl?.trim() || DEFAULT_PRODUCT_IMAGE}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
 
                       <div className="flex-1">

@@ -59,7 +59,7 @@ export const GooseDetail = () => {
             {/* 一張點綴用的大圖 (取代掉 37 張小圖) */}
             <div className="my-20 aspect-[16/9] overflow-hidden bg-zinc-100">
               <img 
-                src="/products/鵝作社潮滷獅頭鵝肉2.png" 
+                src="/products/braised-lion-goose-2.png" 
                 className="w-full h-full object-cover" 
                 alt="Goose Process"
               />

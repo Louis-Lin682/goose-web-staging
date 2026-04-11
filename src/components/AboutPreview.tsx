@@ -8,14 +8,14 @@ const ABOUT_STORY = [
     title: "傳承三代的堅持",
     content:
       "每一道工序都遵循古法，只為留下那一口最純粹的鮮甜。從選材、火候到風味層次，我們始終相信真正的美味，來自時間與手藝。",
-    image: "/products/鵝作社潮滷獅頭鵝肉_鵝肉拼盤1.jpg",
+    image: "/products/goose-platter-1.jpg",
     reverse: false,
   },
   {
     title: "職人手藝與當代餐桌",
     content:
       "保留台味的熟悉記憶，也讓餐桌更俐落、更有儀式感。無論家宴、送禮或日常品味，都希望你在每一次享用時都能感受到鵝作社的用心。",
-    image: "/products/鵝作社潮滷獅頭鵝肉_鵝肉大份1.jpg",
+    image: "/products/goose-large-portion-1.jpg",
     reverse: true,
   },
 ] as const;

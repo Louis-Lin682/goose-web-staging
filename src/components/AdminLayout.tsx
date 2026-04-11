@@ -55,11 +55,6 @@ export const AdminLayout = () => {
       label: "訂單管理",
     },
     {
-      to: "/admin/featured",
-      icon: Sparkles,
-      label: "推薦產品",
-    },
-    {
       to: "/admin/stats",
       icon: BarChart3,
       label: "商品統計",
@@ -73,6 +68,11 @@ export const AdminLayout = () => {
       to: "/admin/products",
       icon: Package,
       label: "商品管理",
+    },
+        {
+      to: "/admin/featured",
+      icon: Sparkles,
+      label: "推薦產品",
     },
   ];
 
